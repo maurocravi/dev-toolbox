@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import type { TimeLog } from "../types";
 
 interface TimerInputProps {
-  onLogCreated: (log: TimeLog) => void;
+  onLogCreated: (log: TimeLog) => Promise<void>;
 }
 
 function formatTime(totalSeconds: number): string {
@@ -19,11 +19,12 @@ export default function TimerInput({ onLogCreated }: TimerInputProps) {
   const [isRunning, setIsRunning] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const [startTime, setStartTime] = useState<Date | null>(null);
+  const [saving, setSaving] = useState(false);
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const startTimeRef = useRef<Date | null>(null);
 
-  const stopTimer = useCallback(() => {
+  const stopTimer = useCallback(async () => {
     if (!startTimeRef.current) return;
 
     const endTime = new Date();
@@ -39,8 +40,6 @@ export default function TimerInput({ onLogCreated }: TimerInputProps) {
       duration,
     };
 
-    onLogCreated(log);
-
     if (intervalRef.current) clearInterval(intervalRef.current);
     intervalRef.current = null;
     startTimeRef.current = null;
@@ -48,6 +47,11 @@ export default function TimerInput({ onLogCreated }: TimerInputProps) {
     setIsRunning(false);
     setElapsed(0);
     setStartTime(null);
+    setSaving(true);
+
+    await onLogCreated(log);
+
+    setSaving(false);
     setTaskName("");
   }, [taskName, onLogCreated]);
 
@@ -158,6 +162,14 @@ export default function TimerInput({ onLogCreated }: TimerInputProps) {
           <span className="font-semibold text-emerald-300">
             {taskName.trim() || "Tarea sin nombre"}
           </span>
+        </div>
+      )}
+
+      {/* Saving indicator */}
+      {saving && (
+        <div className="mt-4 flex items-center gap-2 text-xs text-violet-400">
+          <div className="saving-spinner" />
+          <span>Guardando registro...</span>
         </div>
       )}
     </div>

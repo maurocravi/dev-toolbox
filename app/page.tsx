@@ -3,9 +3,9 @@
 import { useState, useEffect, useCallback } from "react";
 import TimerInput from "./components/TimerInput";
 import LogList from "./components/LogList";
-import type { TimeLog } from "./types";
-
-const STORAGE_KEY = "dev-toolbox-time-logs";
+import type { TimeLog, DbLog } from "./types";
+import { dbToTimeLog, timeLogToDb } from "./types";
+import { supabase } from "../lib/supabase";
 
 function getTodayLogs(allLogs: TimeLog[]): TimeLog[] {
   const today = new Date();
@@ -18,49 +18,99 @@ function getTodayLogs(allLogs: TimeLog[]): TimeLog[] {
     );
 }
 
-function loadLogs(): TimeLog[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveLogs(logs: TimeLog[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(logs));
-}
-
 export default function Home() {
   const [allLogs, setAllLogs] = useState<TimeLog[]>([]);
-  const [mounted, setMounted] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Load from localStorage on mount
+  // Fetch logs from Supabase on mount
   useEffect(() => {
-    setAllLogs(loadLogs());
-    setMounted(true);
+    async function fetchLogs() {
+      setLoading(true);
+      setError(null);
+      const { data, error: fetchError } = await supabase
+        .from("logs")
+        .select("*")
+        .order("start_time", { ascending: false });
+
+      if (fetchError) {
+        console.error("Error fetching logs:", fetchError);
+        setError("Error al cargar los registros.");
+        setLoading(false);
+        return;
+      }
+
+      const logs = (data as DbLog[]).map(dbToTimeLog);
+      setAllLogs(logs);
+      setLoading(false);
+    }
+
+    fetchLogs();
   }, []);
 
-  const handleLogCreated = useCallback((log: TimeLog) => {
-    setAllLogs((prev) => {
-      const updated = [log, ...prev];
-      saveLogs(updated);
-      return updated;
-    });
+  const handleLogCreated = useCallback(async (log: TimeLog) => {
+    // Optimistic update
+    setAllLogs((prev) => [log, ...prev]);
+
+    const { error: insertError } = await supabase
+      .from("logs")
+      .insert(timeLogToDb(log));
+
+    if (insertError) {
+      console.error("Error inserting log:", insertError);
+      // Rollback optimistic update
+      setAllLogs((prev) => prev.filter((l) => l.id !== log.id));
+    }
   }, []);
 
-  const handleDeleteLog = useCallback((id: string) => {
+  const handleDeleteLog = useCallback(async (id: string) => {
+    // Optimistic update
     setAllLogs((prev) => {
-      const updated = prev.filter((log) => log.id !== id);
-      saveLogs(updated);
-      return updated;
+      return prev.filter((log) => log.id !== id);
     });
+
+    const { error: deleteError } = await supabase
+      .from("logs")
+      .delete()
+      .eq("id", id);
+
+    if (deleteError) {
+      console.error("Error deleting log:", deleteError);
+      // Refetch to restore state
+      const { data } = await supabase
+        .from("logs")
+        .select("*")
+        .order("start_time", { ascending: false });
+      if (data) setAllLogs((data as DbLog[]).map(dbToTimeLog));
+    }
+  }, []);
+
+  const handleUpdateLog = useCallback(async (updatedLog: TimeLog) => {
+    // Optimistic update
+    setAllLogs((prev) =>
+      prev.map((log) => (log.id === updatedLog.id ? updatedLog : log))
+    );
+
+    const { error: updateError } = await supabase
+      .from("logs")
+      .update(timeLogToDb(updatedLog))
+      .eq("id", updatedLog.id);
+
+    if (updateError) {
+      console.error("Error updating log:", updateError);
+      // Refetch to restore state
+      const { data } = await supabase
+        .from("logs")
+        .select("*")
+        .order("start_time", { ascending: false });
+      if (data) setAllLogs((data as DbLog[]).map(dbToTimeLog));
+    }
   }, []);
 
   const todayLogs = getTodayLogs(allLogs);
 
-  if (!mounted) {
+  // Loading state
+  if (loading) {
     return (
       <main className="app-container">
         <div className="app-content">
@@ -76,6 +126,10 @@ export default function Home() {
                 <p className="text-xs text-neutral-500">Navaja suiza para desarrolladores</p>
               </div>
             </div>
+          </div>
+          <div className="loading-container">
+            <div className="saving-spinner loading-spinner-lg" />
+            <p className="text-sm text-neutral-500 mt-3">Cargando registros...</p>
           </div>
         </div>
       </main>
@@ -107,11 +161,18 @@ export default function Home() {
           </div>
         </div>
 
+        {/* Error banner */}
+        {error && (
+          <div className="error-banner">
+            <span>{error}</span>
+          </div>
+        )}
+
         {/* Timer */}
         <TimerInput onLogCreated={handleLogCreated} />
 
         {/* Logs */}
-        <LogList logs={todayLogs} onDeleteLog={handleDeleteLog} />
+        <LogList logs={todayLogs} onDeleteLog={handleDeleteLog} onUpdateLog={handleUpdateLog} />
       </div>
     </main>
   );
