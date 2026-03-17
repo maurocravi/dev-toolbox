@@ -5,7 +5,7 @@ import TimerInput from "./components/TimerInput";
 import LogList from "./components/LogList";
 import type { TimeLog, DbLog } from "./types";
 import { dbToTimeLog, timeLogToDb } from "./types";
-import { supabase } from "../lib/supabase";
+import { getSupabase } from "../lib/supabase";
 
 function getTodayLogs(allLogs: TimeLog[]): TimeLog[] {
   const today = new Date();
@@ -28,7 +28,7 @@ export default function Home() {
     async function fetchLogs() {
       setLoading(true);
       setError(null);
-      const { data, error: fetchError } = await supabase
+      const { data, error: fetchError } = await getSupabase()
         .from("logs")
         .select("*")
         .order("start_time", { ascending: false });
@@ -52,7 +52,7 @@ export default function Home() {
     // Optimistic update
     setAllLogs((prev) => [log, ...prev]);
 
-    const { error: insertError } = await supabase
+    const { error: insertError } = await getSupabase()
       .from("logs")
       .insert(timeLogToDb(log));
 
@@ -69,7 +69,7 @@ export default function Home() {
       return prev.filter((log) => log.id !== id);
     });
 
-    const { error: deleteError } = await supabase
+    const { error: deleteError } = await getSupabase()
       .from("logs")
       .delete()
       .eq("id", id);
@@ -77,7 +77,7 @@ export default function Home() {
     if (deleteError) {
       console.error("Error deleting log:", deleteError);
       // Refetch to restore state
-      const { data } = await supabase
+      const { data } = await getSupabase()
         .from("logs")
         .select("*")
         .order("start_time", { ascending: false });
@@ -91,7 +91,7 @@ export default function Home() {
       prev.map((log) => (log.id === updatedLog.id ? updatedLog : log))
     );
 
-    const { error: updateError } = await supabase
+    const { error: updateError } = await getSupabase()
       .from("logs")
       .update(timeLogToDb(updatedLog))
       .eq("id", updatedLog.id);
@@ -99,7 +99,7 @@ export default function Home() {
     if (updateError) {
       console.error("Error updating log:", updateError);
       // Refetch to restore state
-      const { data } = await supabase
+      const { data } = await getSupabase()
         .from("logs")
         .select("*")
         .order("start_time", { ascending: false });
