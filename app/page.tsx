@@ -26,23 +26,29 @@ export default function Home() {
   // Fetch logs from Supabase on mount
   useEffect(() => {
     async function fetchLogs() {
-      setLoading(true);
-      setError(null);
-      const { data, error: fetchError } = await getSupabase()
-        .from("logs")
-        .select("*")
-        .order("start_time", { ascending: false });
+      try {
+        setLoading(true);
+        setError(null);
+        const { data, error: fetchError } = await getSupabase()
+          .from("logs")
+          .select("*")
+          .order("start_time", { ascending: false });
 
-      if (fetchError) {
-        console.error("Error fetching logs:", fetchError);
-        setError("Error al cargar los registros.");
+        if (fetchError) {
+          console.error("Error fetching logs:", fetchError);
+          setError("Error al cargar los registros.");
+          setLoading(false);
+          return;
+        }
+
+        const logs = (data as DbLog[]).map(dbToTimeLog);
+        setAllLogs(logs);
         setLoading(false);
-        return;
+      } catch (err) {
+        console.error("Unexpected error fetching logs:", err);
+        setError("Error al conectar con el servidor.");
+        setLoading(false);
       }
-
-      const logs = (data as DbLog[]).map(dbToTimeLog);
-      setAllLogs(logs);
-      setLoading(false);
     }
 
     fetchLogs();
