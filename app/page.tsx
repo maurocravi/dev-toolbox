@@ -1,27 +1,46 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import TimerInput from "./components/TimerInput";
 import LogList from "./components/LogList";
 import type { TimeLog, DbLog } from "./types";
 import { dbToTimeLog, timeLogToDb } from "./types";
 import { getSupabase } from "../lib/supabase";
 
-function getTodayLogs(allLogs: TimeLog[]): TimeLog[] {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  return allLogs
-    .filter((log) => new Date(log.startTime) >= today)
-    .sort(
+const DAYS_PER_PAGE = 7;
+
+function getDayKey(date: Date): string {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  return d.toISOString();
+}
+
+function groupLogsByDay(
+  allLogs: TimeLog[]
+): Map<string, TimeLog[]> {
+  const groups = new Map<string, TimeLog[]>();
+  for (const log of allLogs) {
+    const dayKey = getDayKey(new Date(log.startTime));
+    if (!groups.has(dayKey)) {
+      groups.set(dayKey, []);
+    }
+    groups.get(dayKey)!.push(log);
+  }
+  // Sort each group by startTime descending
+  for (const [, logs] of groups) {
+    logs.sort(
       (a, b) =>
         new Date(b.startTime).getTime() - new Date(a.startTime).getTime()
     );
+  }
+  return groups;
 }
 
 export default function Home() {
   const [allLogs, setAllLogs] = useState<TimeLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [visibleDays, setVisibleDays] = useState(DAYS_PER_PAGE);
 
   // Fetch logs from Supabase on mount
   useEffect(() => {
@@ -113,7 +132,23 @@ export default function Home() {
     }
   }, []);
 
-  const todayLogs = getTodayLogs(allLogs);
+  const groupedLogs = useMemo(() => groupLogsByDay(allLogs), [allLogs]);
+
+  const uniqueDays = useMemo(() => {
+    return Array.from(groupedLogs.keys()).sort(
+      (a, b) => new Date(b).getTime() - new Date(a).getTime()
+    );
+  }, [groupedLogs]);
+
+  const visibleDaysList = useMemo(() => {
+    return uniqueDays.slice(0, visibleDays);
+  }, [uniqueDays, visibleDays]);
+
+  const hasMoreDays = uniqueDays.length > visibleDays;
+
+  const handleLoadMore = () => {
+    setVisibleDays((prev) => prev + DAYS_PER_PAGE);
+  };
 
   // Loading state
   if (loading) {
@@ -128,8 +163,8 @@ export default function Home() {
                 </svg>
               </div>
               <div>
-                <h1 className="text-lg font-semibold text-neutral-100">Dev Toolbox</h1>
-                <p className="text-xs text-neutral-500">Navaja suiza para desarrolladores</p>
+                <h1 className="text-lg font-semibold text-neutral-100">QA Toolbox</h1>
+                <p className="text-xs text-neutral-500">Navaja suiza para QA</p>
               </div>
             </div>
           </div>
@@ -154,8 +189,8 @@ export default function Home() {
               </svg>
             </div>
             <div>
-              <h1 className="text-lg font-semibold text-neutral-100">Dev Toolbox</h1>
-              <p className="text-xs text-neutral-500">Navaja suiza para desarrolladores</p>
+              <h1 className="text-lg font-semibold text-neutral-100">QA Toolbox</h1>
+              <p className="text-xs text-neutral-500">Navaja suiza para QA</p>
             </div>
           </div>
           <div className="text-xs text-neutral-600 font-mono">
@@ -178,7 +213,14 @@ export default function Home() {
         <TimerInput onLogCreated={handleLogCreated} />
 
         {/* Logs */}
-        <LogList logs={todayLogs} onDeleteLog={handleDeleteLog} onUpdateLog={handleUpdateLog} />
+        <LogList
+          visibleDays={visibleDaysList}
+          groupedLogs={groupedLogs}
+          onDeleteLog={handleDeleteLog}
+          onUpdateLog={handleUpdateLog}
+          hasMore={hasMoreDays}
+          onLoadMore={handleLoadMore}
+        />
       </div>
     </main>
   );

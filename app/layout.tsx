@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Dev Toolbox — Time Tracker",
-  description: "Navaja suiza para desarrolladores. Registra y organiza tu tiempo por tareas.",
+  title: "QA Toolbox — Time Tracker",
+  description: "Navaja suiza para QA. Registra y organiza tu tiempo por tareas.",
 };
 
 export default function RootLayout({
