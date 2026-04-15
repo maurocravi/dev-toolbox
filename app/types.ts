@@ -34,3 +34,60 @@ export function timeLogToDb(log: TimeLog): DbLog {
     duration: log.duration,
   };
 }
+
+// ═══════════════════════════════════════════
+// Project types
+// ═══════════════════════════════════════════
+
+export interface ProjectLink {
+  label: string;
+  url: string;
+  color: "blue" | "red";
+}
+
+export interface DbProject {
+  id: string;
+  created_at: string;
+  name: string;
+  description: string | null;
+  color: string;
+  links: ProjectLink[];
+  accounts: unknown[];
+  user_id: string | null;
+}
+
+export interface Project {
+  id: string;
+  name: string;
+  color: string;
+  description: string;
+  createdAt: string;
+  links: ProjectLink[];
+}
+
+export function dbToProject(row: DbProject): Project {
+  return {
+    id: row.id,
+    name: row.name,
+    color: row.color || "#94a3b8",
+    description: row.description || "",
+    createdAt: row.created_at,
+    links: Array.isArray(row.links) ? row.links : [],
+  };
+}
+
+export function projectToDb(project: Project): {
+  name: string;
+  description: string;
+  color: string;
+  links: ProjectLink[];
+  user_id: string | null;
+} {
+  return {
+    name: project.name,
+    description: project.description || "",
+    color: project.color,
+    links: project.links,
+    user_id: null,
+  };
+}

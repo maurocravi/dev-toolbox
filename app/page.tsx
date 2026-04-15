@@ -15,9 +15,7 @@ function getDayKey(date: Date): string {
   return d.toISOString();
 }
 
-function groupLogsByDay(
-  allLogs: TimeLog[]
-): Map<string, TimeLog[]> {
+function groupLogsByDay(allLogs: TimeLog[]): Map<string, TimeLog[]> {
   const groups = new Map<string, TimeLog[]>();
   for (const log of allLogs) {
     const dayKey = getDayKey(new Date(log.startTime));
@@ -26,11 +24,9 @@ function groupLogsByDay(
     }
     groups.get(dayKey)!.push(log);
   }
-  // Sort each group by startTime descending
   for (const [, logs] of groups) {
     logs.sort(
-      (a, b) =>
-        new Date(b.startTime).getTime() - new Date(a.startTime).getTime()
+      (a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime()
     );
   }
   return groups;
@@ -42,7 +38,6 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [visibleDays, setVisibleDays] = useState(DAYS_PER_PAGE);
 
-  // Fetch logs from Supabase on mount
   useEffect(() => {
     async function fetchLogs() {
       try {
@@ -74,7 +69,6 @@ export default function Home() {
   }, []);
 
   const handleLogCreated = useCallback(async (log: TimeLog) => {
-    // Optimistic update
     setAllLogs((prev) => [log, ...prev]);
 
     const { error: insertError } = await getSupabase()
@@ -83,16 +77,12 @@ export default function Home() {
 
     if (insertError) {
       console.error("Error inserting log:", insertError);
-      // Rollback optimistic update
       setAllLogs((prev) => prev.filter((l) => l.id !== log.id));
     }
   }, []);
 
   const handleDeleteLog = useCallback(async (id: string) => {
-    // Optimistic update
-    setAllLogs((prev) => {
-      return prev.filter((log) => log.id !== id);
-    });
+    setAllLogs((prev) => prev.filter((log) => log.id !== id));
 
     const { error: deleteError } = await getSupabase()
       .from("logs")
@@ -101,7 +91,6 @@ export default function Home() {
 
     if (deleteError) {
       console.error("Error deleting log:", deleteError);
-      // Refetch to restore state
       const { data } = await getSupabase()
         .from("logs")
         .select("*")
@@ -111,7 +100,6 @@ export default function Home() {
   }, []);
 
   const handleUpdateLog = useCallback(async (updatedLog: TimeLog) => {
-    // Optimistic update
     setAllLogs((prev) =>
       prev.map((log) => (log.id === updatedLog.id ? updatedLog : log))
     );
@@ -123,7 +111,6 @@ export default function Home() {
 
     if (updateError) {
       console.error("Error updating log:", updateError);
-      // Refetch to restore state
       const { data } = await getSupabase()
         .from("logs")
         .select("*")
@@ -150,14 +137,15 @@ export default function Home() {
     setVisibleDays((prev) => prev + DAYS_PER_PAGE);
   };
 
-  // Loading state
   if (loading) {
     return (
-      <main className="app-container">
-        <div className="app-content">
-          <div className="app-header">
+      <div className="min-h-screen flex justify-center py-8 px-4" style={{
+        background: "radial-gradient(ellipse at 20% 0%, rgba(99, 102, 241, 0.06) 0%, transparent 60%), radial-gradient(ellipse at 80% 100%, rgba(16, 185, 129, 0.04) 0%, transparent 60%), var(--background)",
+      }}>
+        <div className="w-full max-w-[640px]">
+          <div className="flex items-center justify-between mb-8 pb-6 border-b border-[var(--card-border)]">
             <div className="flex items-center gap-3">
-              <div className="app-logo">
+              <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-gradient-to-br from-[var(--accent)] to-[#8b5cf6] text-white flex-shrink-0">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
                 </svg>
@@ -168,22 +156,24 @@ export default function Home() {
               </div>
             </div>
           </div>
-          <div className="loading-container">
-            <div className="saving-spinner loading-spinner-lg" />
+          <div className="flex flex-col items-center justify-center py-16">
+            <div className="w-7 h-7 border-[3px] border-[rgba(99,102,241,0.2)] border-t-[var(--accent)] rounded-full animate-spin" />
             <p className="text-sm text-neutral-500 mt-3">Cargando registros...</p>
           </div>
         </div>
-      </main>
+      </div>
     );
   }
 
   return (
-    <main className="app-container">
-      <div className="app-content">
+    <div className="min-h-screen flex justify-center py-8 px-4" style={{
+      background: "radial-gradient(ellipse at 20% 0%, rgba(99, 102, 241, 0.06) 0%, transparent 60%), radial-gradient(ellipse at 80% 100%, rgba(16, 185, 129, 0.04) 0%, transparent 60%), var(--background)",
+    }}>
+      <div className="w-full max-w-[640px]">
         {/* Header */}
-        <div className="app-header">
+        <div className="flex items-center justify-between mb-8 pb-6 border-b border-[var(--card-border)]">
           <div className="flex items-center gap-3">
-            <div className="app-logo">
+            <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-gradient-to-br from-[var(--accent)] to-[#8b5cf6] text-white flex-shrink-0">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
               </svg>
@@ -204,7 +194,7 @@ export default function Home() {
 
         {/* Error banner */}
         {error && (
-          <div className="error-banner">
+          <div className="bg-[rgba(239,68,68,0.1)] border border-[rgba(239,68,68,0.2)] rounded-xl px-4 py-3 mb-4 text-[0.8125rem] text-[var(--danger-hover)]">
             <span>{error}</span>
           </div>
         )}
@@ -222,6 +212,6 @@ export default function Home() {
           onLoadMore={handleLoadMore}
         />
       </div>
-    </main>
+    </div>
   );
 }

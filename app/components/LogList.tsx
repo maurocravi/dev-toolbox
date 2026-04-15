@@ -119,18 +119,9 @@ export default function LogList({
 
   if (visibleDays.length === 0) {
     return (
-      <div className="empty-state">
-        <div className="empty-state-icon">
-          <svg
-            width="32"
-            height="32"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
+      <div className="flex flex-col items-center justify-center py-12 text-center">
+        <div className="flex items-center justify-center w-14 h-14 rounded-2xl bg-[var(--card-bg)] border border-[var(--card-border)] text-[#3a3a44] mb-4">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="12" cy="12" r="10" />
             <polyline points="12 6 12 12 16 14" />
           </svg>
@@ -156,14 +147,16 @@ export default function LogList({
           const totalDuration = getTotalDuration(logs);
 
           return (
-            <div key={dayKey} className="log-section">
+            <div key={dayKey} className="mt-2">
               {/* Day Header */}
-              <div className="log-header">
+              <div className="flex items-center justify-between mb-3 px-1">
                 <div className="flex items-center gap-2">
                   <h2 className="text-sm font-semibold text-neutral-300">
                     {getDayLabel(dayKey)}
                   </h2>
-                  <span className="log-count">{logs.length}</span>
+                  <span className="inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-md bg-[rgba(99,102,241,0.15)] text-[var(--accent)] text-[0.6875rem] font-bold">
+                    {logs.length}
+                  </span>
                 </div>
                 <span className="text-sm font-mono text-neutral-400">
                   Total: {formatDuration(totalDuration)}
@@ -171,7 +164,7 @@ export default function LogList({
               </div>
 
               {/* Log Items */}
-              <ul className="log-list">
+              <ul className="flex flex-col gap-0.5 list-none m-0 p-0">
                 {logs.map((log, index) => {
                   const isEditing = editingId === log.id;
                   const isSaving = savingId === log.id;
@@ -179,26 +172,30 @@ export default function LogList({
                   return (
                     <li
                       key={log.id}
-                      className={`log-item ${isEditing ? "log-item-editing" : ""}`}
-                      style={{ animationDelay: `${index * 50}ms` }}
+                      className={`flex items-center justify-between gap-4 px-4 py-3.5 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl transition-all duration-150 animate-[slideIn_0.3s_ease_forwards] ${
+                        isEditing
+                          ? "!border-[var(--accent)] bg-[#16161e] shadow-[0_0_0_3px_rgba(99,102,241,0.08)] relative"
+                          : "hover:border-[#2a2a32] hover:bg-[#181820]"
+                      }`}
+                      style={{ animationDelay: `${index * 50}ms`, opacity: isEditing ? 1 : undefined }}
                     >
                       {/* Saving overlay */}
                       {isSaving && (
-                        <div className="log-saving-overlay">
-                          <div className="saving-spinner" />
+                        <div className="absolute inset-0 flex items-center justify-center gap-2 bg-[rgba(20,20,22,0.85)] backdrop-blur-sm rounded-xl z-10 text-[0.75rem] font-semibold text-[var(--accent-hover)] tracking-wide">
+                          <div className="w-3.5 h-3.5 border-2 border-[rgba(99,102,241,0.2)] border-t-[var(--accent)] rounded-full animate-spin" />
                           <span>Guardando...</span>
                         </div>
                       )}
 
                       <div className="flex items-center gap-3 flex-1 min-w-0">
-                        <div className="log-color-dot" />
+                        <div className="w-2 h-2 rounded-full bg-[var(--accent)] flex-shrink-0 opacity-70" />
                         <div className="flex-1 min-w-0">
                           {isEditing ? (
                             <input
                               type="text"
                               value={editTaskName}
                               onChange={(e) => setEditTaskName(e.target.value)}
-                              className="log-edit-input"
+                              className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] rounded-lg px-2 py-1.5 text-[0.8125rem] text-[var(--foreground)] outline-none transition-[border-color,box-shadow] duration-150 font-[inherit] placeholder:text-zinc-600 focus:border-[var(--accent)] focus:shadow-[0_0_0_2px_rgba(99,102,241,0.1)]"
                               placeholder="Nombre de tarea"
                               autoFocus
                               onKeyDown={(e) => {
@@ -227,7 +224,7 @@ export default function LogList({
                               type="text"
                               value={editDuration}
                               onChange={(e) => setEditDuration(e.target.value)}
-                              className="log-edit-input log-edit-duration"
+                              className="w-[90px] text-center font-mono font-semibold bg-[var(--input-bg)] border border-[var(--input-border)] rounded-lg px-2 py-1.5 text-[0.8125rem] text-[var(--foreground)] outline-none transition-[border-color,box-shadow] duration-150 flex-shrink-0 focus:border-[var(--accent)] focus:shadow-[0_0_0_2px_rgba(99,102,241,0.1)]"
                               placeholder="HH:MM:SS"
                               maxLength={8}
                               onKeyDown={(e) => {
@@ -237,7 +234,7 @@ export default function LogList({
                             />
                             <button
                               onClick={() => saveEdit(log)}
-                              className="log-action-btn log-save-btn"
+                              className="flex items-center justify-center w-7 h-7 rounded-lg bg-transparent border-none cursor-pointer transition-all duration-150 flex-shrink-0 text-[var(--success)] hover:bg-[rgba(16,185,129,0.12)] hover:text-[#34d399] disabled:opacity-40 disabled:cursor-not-allowed"
                               aria-label="Guardar cambios"
                               disabled={isSaving}
                             >
@@ -247,7 +244,7 @@ export default function LogList({
                             </button>
                             <button
                               onClick={cancelEditing}
-                              className="log-action-btn log-cancel-btn"
+                              className="flex items-center justify-center w-7 h-7 rounded-lg bg-transparent border-none cursor-pointer transition-all duration-150 flex-shrink-0 text-zinc-500 hover:bg-[rgba(239,68,68,0.1)] hover:text-[var(--danger)] disabled:opacity-40 disabled:cursor-not-allowed"
                               aria-label="Cancelar edición"
                               disabled={isSaving}
                             >
@@ -259,10 +256,12 @@ export default function LogList({
                           </>
                         ) : (
                           <>
-                            <span className="log-duration">{formatDuration(log.duration)}</span>
+                            <span className="font-mono text-[0.8125rem] font-semibold text-[var(--foreground)] bg-[var(--input-bg)] px-2.5 py-1 rounded-lg whitespace-nowrap">
+                              {formatDuration(log.duration)}
+                            </span>
                             <button
                               onClick={() => startEditing(log)}
-                              className="log-action-btn log-edit-btn"
+                              className="flex items-center justify-center w-7 h-7 rounded-lg bg-transparent border-none cursor-pointer transition-all duration-150 flex-shrink-0 text-zinc-500 hover:bg-[rgba(99,102,241,0.1)] hover:text-[var(--accent-hover)] disabled:opacity-40 disabled:cursor-not-allowed"
                               aria-label={`Editar registro ${log.taskName}`}
                               disabled={savingId !== null}
                             >
@@ -273,20 +272,11 @@ export default function LogList({
                             </button>
                             <button
                               onClick={() => onDeleteLog(log.id)}
-                              className="log-delete-btn"
+                              className="flex items-center justify-center w-7 h-7 rounded-lg bg-transparent border-none cursor-pointer transition-all duration-150 flex-shrink-0 text-zinc-500 hover:bg-[rgba(239,68,68,0.1)] hover:text-[var(--danger)] disabled:opacity-40 disabled:cursor-not-allowed"
                               aria-label={`Eliminar registro ${log.taskName}`}
                               disabled={savingId !== null}
                             >
-                              <svg
-                                width="14"
-                                height="14"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                              >
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                 <line x1="18" y1="6" x2="6" y2="18" />
                                 <line x1="6" y1="6" x2="18" y2="18" />
                               </svg>
