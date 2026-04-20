@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState } from "react";
+import { createClient } from "@/lib/supabase/client";
 
 const navItems = [
   {
@@ -27,6 +29,20 @@ const navItems = [
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const supabase = createClient();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  const handleLogout = async () => {
+    try {
+      setIsLoggingOut(true);
+      await supabase.auth.signOut();
+      // Hard redirect para limpiar por completo el estado de React y cualquier caché en memoria
+      window.location.href = "/login";
+    } catch (err) {
+      console.error("Error al cerrar sesión:", err);
+      setIsLoggingOut(false);
+    }
+  };
 
   return (
     <aside className="w-60 min-h-screen bg-[var(--card-bg)] border-r border-[var(--card-border)] flex flex-col flex-shrink-0">
@@ -61,6 +77,25 @@ export default function Sidebar() {
           })}
         </ul>
       </nav>
+
+      <div className="px-4 py-5 border-t border-[var(--card-border)]">
+        <button
+          onClick={handleLogout}
+          disabled={isLoggingOut}
+          className="flex items-center gap-3 w-full px-4 py-2.5 rounded-xl text-[0.8125rem] font-medium text-zinc-500 transition-all duration-200 hover:bg-[rgba(239,68,68,0.1)] hover:text-[var(--danger)] disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {isLoggingOut ? (
+            <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+          ) : (
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+              <polyline points="16 17 21 12 16 7" />
+              <line x1="21" y1="12" x2="9" y2="12" />
+            </svg>
+          )}
+          <span className="whitespace-nowrap">{isLoggingOut ? "Saliendo..." : "Cerrar sesión"}</span>
+        </button>
+      </div>
     </aside>
   );
 }

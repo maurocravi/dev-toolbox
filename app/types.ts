@@ -45,6 +45,13 @@ export interface ProjectLink {
   color: "blue" | "red";
 }
 
+export interface ProjectAccount {
+  name: string;
+  username: string;
+  password: string;
+  color: "blue" | "red";
+}
+
 export interface DbProject {
   id: string;
   created_at: string;
@@ -63,6 +70,7 @@ export interface Project {
   description: string;
   createdAt: string;
   links: ProjectLink[];
+  accounts: ProjectAccount[];
 }
 
 export function dbToProject(row: DbProject): Project {
@@ -73,6 +81,7 @@ export function dbToProject(row: DbProject): Project {
     description: row.description || "",
     createdAt: row.created_at,
     links: Array.isArray(row.links) ? row.links : [],
+    accounts: Array.isArray(row.accounts) ? (row.accounts as ProjectAccount[]) : [],
   };
 }
 
@@ -81,6 +90,7 @@ export function projectToDb(project: Project): {
   description: string;
   color: string;
   links: ProjectLink[];
+  accounts: ProjectAccount[];
   user_id: string | null;
 } {
   return {
@@ -88,6 +98,7 @@ export function projectToDb(project: Project): {
     description: project.description || "",
     color: project.color,
     links: project.links,
+    accounts: project.accounts,
     user_id: null,
   };
 }

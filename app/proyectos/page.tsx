@@ -5,7 +5,7 @@ import ProjectModal, { ProjectFormData } from "../components/ProjectModal";
 import ProjectDetailsModal from "../components/ProjectDetailsModal";
 import ProjectCard from "../components/ProjectCard";
 import { dbToProject, projectToDb, type DbProject, type Project } from "../types";
-import { getSupabase } from "../../lib/supabase";
+import { createClient } from "@/lib/supabase/client";
 
 function generateId(): string {
   return `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
@@ -23,7 +23,8 @@ export default function ProyectosPage() {
       try {
         setLoading(true);
         setError(null);
-        const { data, error: fetchError } = await getSupabase()
+        const supabase = createClient();
+        const { data, error: fetchError } = await supabase
           .from("projects")
           .select("*")
           .order("created_at", { ascending: false });
@@ -53,6 +54,11 @@ export default function ProyectosPage() {
   };
 
   const handleSaveProject = useCallback(async (data: ProjectFormData) => {
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
     const tempId = generateId();
     const now = new Date().toISOString();
 
@@ -63,13 +69,19 @@ export default function ProyectosPage() {
       description: data.description,
       createdAt: now,
       links: [],
+      accounts: [],
     };
 
     setProjects((prev) => [tempProject, ...prev]);
 
-    const { data: inserted, error: insertError } = await getSupabase()
+    const dbPayload = {
+      ...projectToDb(tempProject),
+      user_id: user?.id ?? null,
+    };
+
+    const { data: inserted, error: insertError } = await supabase
       .from("projects")
-      .insert(projectToDb(tempProject))
+      .insert(dbPayload)
       .select()
       .single();
 
@@ -88,14 +100,15 @@ export default function ProyectosPage() {
   const handleDeleteProject = useCallback(async (id: string) => {
     setProjects((prev) => prev.filter((p) => p.id !== id));
 
-    const { error: deleteError } = await getSupabase()
+    const supabase = createClient();
+    const { error: deleteError } = await supabase
       .from("projects")
       .delete()
       .eq("id", id);
 
     if (deleteError) {
       console.error("Error deleting project:", deleteError);
-      const { data } = await getSupabase()
+      const { data } = await supabase
         .from("projects")
         .select("*")
         .order("created_at", { ascending: false });
@@ -112,14 +125,15 @@ export default function ProyectosPage() {
     setProjects((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
     setSelectedProject(updated);
 
-    const { error: updateError } = await getSupabase()
+    const supabase = createClient();
+    const { error: updateError } = await supabase
       .from("projects")
-      .update({ links: updated.links })
+      .update({ links: updated.links, accounts: updated.accounts })
       .eq("id", updated.id);
 
     if (updateError) {
       console.error("Error updating project links:", updateError);
-      const { data } = await getSupabase()
+      const { data } = await supabase
         .from("projects")
         .select("*")
         .order("created_at", { ascending: false });

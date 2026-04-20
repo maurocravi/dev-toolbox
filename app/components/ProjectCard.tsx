@@ -1,12 +1,6 @@
 "use client";
 
-export interface Project {
-  id: string;
-  name: string;
-  color: string;
-  description: string;
-  createdAt: string;
-}
+import type { Project } from "../types";
 
 interface ProjectCardProps {
   project: Project;

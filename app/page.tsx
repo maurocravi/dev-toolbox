@@ -5,7 +5,7 @@ import TimerInput from "./components/TimerInput";
 import LogList from "./components/LogList";
 import type { TimeLog, DbLog } from "./types";
 import { dbToTimeLog, timeLogToDb } from "./types";
-import { getSupabase } from "../lib/supabase";
+import { createClient } from "@/lib/supabase/client";
 
 const DAYS_PER_PAGE = 7;
 
@@ -43,7 +43,8 @@ export default function Home() {
       try {
         setLoading(true);
         setError(null);
-        const { data, error: fetchError } = await getSupabase()
+        const supabase = createClient();
+        const { data, error: fetchError } = await supabase
           .from("logs")
           .select("*")
           .order("start_time", { ascending: false });
@@ -71,7 +72,8 @@ export default function Home() {
   const handleLogCreated = useCallback(async (log: TimeLog) => {
     setAllLogs((prev) => [log, ...prev]);
 
-    const { error: insertError } = await getSupabase()
+    const supabase = createClient();
+    const { error: insertError } = await supabase
       .from("logs")
       .insert(timeLogToDb(log));
 
@@ -84,14 +86,15 @@ export default function Home() {
   const handleDeleteLog = useCallback(async (id: string) => {
     setAllLogs((prev) => prev.filter((log) => log.id !== id));
 
-    const { error: deleteError } = await getSupabase()
+    const supabase = createClient();
+    const { error: deleteError } = await supabase
       .from("logs")
       .delete()
       .eq("id", id);
 
     if (deleteError) {
       console.error("Error deleting log:", deleteError);
-      const { data } = await getSupabase()
+      const { data } = await supabase
         .from("logs")
         .select("*")
         .order("start_time", { ascending: false });
@@ -104,14 +107,15 @@ export default function Home() {
       prev.map((log) => (log.id === updatedLog.id ? updatedLog : log))
     );
 
-    const { error: updateError } = await getSupabase()
+    const supabase = createClient();
+    const { error: updateError } = await supabase
       .from("logs")
       .update(timeLogToDb(updatedLog))
       .eq("id", updatedLog.id);
 
     if (updateError) {
       console.error("Error updating log:", updateError);
-      const { data } = await getSupabase()
+      const { data } = await supabase
         .from("logs")
         .select("*")
         .order("start_time", { ascending: false });

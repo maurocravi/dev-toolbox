@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>QA Toolbox</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <!-- Header -->
+  <header class="header">
+    <div class="header-brand">
+      <div class="header-icon">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
+        </svg>
+      </div>
+      <div>
+        <h1 class="header-title">QA Toolbox</h1>
+        <p class="header-subtitle">Time Tracker</p>
+      </div>
+    </div>
+    <div class="header-actions" id="header-actions">
+      <span class="header-user" id="header-user"></span>
+      <button class="btn-icon" id="btn-logout" title="Cerrar sesión" aria-label="Cerrar sesión">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+          <polyline points="16 17 21 12 16 7" />
+          <line x1="21" y1="12" x2="9" y2="12" />
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- Login Section -->
+  <section id="login-section" class="section hidden">
+    <div class="card">
+      <div class="card-body">
+        <div class="form-group">
+          <label class="form-label" for="login-email">Email</label>
+          <input type="email" id="login-email" class="form-input" placeholder="tu@email.com" autocomplete="email" />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="login-password">Contraseña</label>
+          <input type="password" id="login-password" class="form-input" placeholder="••••••••" autocomplete="current-password" />
+        </div>
+        <button id="btn-login" class="btn btn-primary btn-block">
+          <span>Ingresar</span>
+        </button>
+        <div id="login-error" class="banner banner-error hidden"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Timer Section -->
+  <section id="timer-section" class="section hidden">
+    <div class="card">
+      <div class="card-body">
+        <!-- Task Input -->
+        <div class="form-group">
+          <input
+            type="text"
+            id="task-input"
+            class="form-input form-input-lg"
+            placeholder="¿En qué estás trabajando?"
+            autocomplete="off"
+          />
+        </div>
+
+        <!-- Timer Row -->
+        <div class="timer-row">
+          <div class="timer-display" id="timer-display">00:00:00</div>
+          <button id="btn-toggle" class="btn btn-primary">
+            <svg id="icon-play" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M8 5v14l11-7z" />
+            </svg>
+            <svg id="icon-stop" class="hidden" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+              <rect x="6" y="6" width="12" height="12" rx="2" />
+            </svg>
+            <span id="btn-toggle-text">Iniciar</span>
+          </button>
+        </div>
+
+        <!-- Running Indicator -->
+        <div id="running-indicator" class="running-indicator hidden">
+          <span class="pulse-dot"></span>
+          <span>Registrando <strong id="running-task"></strong></span>
+        </div>
+
+        <!-- Saving Indicator -->
+        <div id="saving-indicator" class="saving-indicator hidden">
+          <span class="spinner"></span>
+          <span>Guardando...</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recent Logs -->
+    <div class="logs-header">
+      <h2 class="logs-title">Registros recientes</h2>
+      <button id="btn-refresh" class="btn-icon btn-icon-sm" title="Recargar" aria-label="Recargar">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="23 4 23 10 17 10" />
+          <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+        </svg>
+      </button>
+    </div>
+    <div id="logs-list" class="logs-list"></div>
+    <div id="logs-empty" class="logs-empty hidden">No hay registros aún.</div>
+  </section>
+
+  <!-- Edit Modal -->
+  <div id="edit-modal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title">Editar registro</h3>
+        <button id="btn-edit-close" class="btn-icon btn-icon-sm" aria-label="Cerrar">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">Tarea</label>
+          <input type="text" id="edit-task" class="form-input" />
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Inicio</label>
+            <input type="datetime-local" id="edit-start" class="form-input" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Fin</label>
+            <input type="datetime-local" id="edit-end" class="form-input" />
+          </div>
+        </div>
+        <div id="edit-error" class="banner banner-error hidden"></div>
+      </div>
+      <div class="modal-footer">
+        <button id="btn-edit-cancel" class="btn btn-ghost">Cancelar</button>
+        <button id="btn-edit-save" class="btn btn-primary">
+          <span class="spinner hidden" id="edit-spinner"></span>
+          <span>Guardar</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

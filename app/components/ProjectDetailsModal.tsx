@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Project, ProjectLink } from "../types";
+import { Project, ProjectLink, ProjectAccount } from "../types";
 
 interface ProjectDetailsModalProps {
   project: Project;
@@ -10,8 +10,22 @@ interface ProjectDetailsModalProps {
 }
 
 const LINK_COLORS = ["blue", "red"] as const;
+const ACCOUNT_COLORS = ["blue", "red"] as const;
 
 const LINK_COLOR_MAP: Record<string, { bg: string; text: string; dot: string }> = {
+  blue: {
+    bg: "rgba(59, 130, 246, 0.12)",
+    text: "#60a5fa",
+    dot: "#3b82f6",
+  },
+  red: {
+    bg: "rgba(239, 68, 68, 0.12)",
+    text: "#f87171",
+    dot: "#ef4444",
+  },
+};
+
+const ACCOUNT_COLOR_MAP: Record<string, { bg: string; text: string; dot: string }> = {
   blue: {
     bg: "rgba(59, 130, 246, 0.12)",
     text: "#60a5fa",
@@ -31,11 +45,21 @@ export default function ProjectDetailsModal({
 }: ProjectDetailsModalProps) {
   const [links, setLinks] = useState<ProjectLink[]>(project.links);
   const [showLinkForm, setShowLinkForm] = useState(false);
-  const [formLabel, setFormLabel] = useState("");
+  const [formLinkLabel, setFormLinkLabel] = useState("");
   const [formUrl, setFormUrl] = useState("");
-  const [formColor, setFormColor] = useState<"blue" | "red">("blue");
+  const [formLinkColor, setFormLinkColor] = useState<"blue" | "red">("blue");
+
+  const [accounts, setAccounts] = useState<ProjectAccount[]>(project.accounts);
+  const [showAccountForm, setShowAccountForm] = useState(false);
+  const [formAccountLabel, setFormAccountLabel] = useState("");
+  const [formAccountUsername, setFormAccountUsername] = useState("");
+  const [formAccountPassword, setFormAccountPassword] = useState("");
+  const [formAccountColor, setFormAccountColor] = useState<"blue" | "red">("blue");
+
   const [formError, setFormError] = useState<string | null>(null);
-  const [copiedId, setCopiedId] = useState<number | null>(null);
+  const [copiedLinkId, setCopiedLinkId] = useState<number | null>(null);
+  const [copiedUserId, setCopiedUserId] = useState<number | null>(null);
+  const [copiedPassId, setCopiedPassId] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
 
   const handleClose = useCallback(() => {
@@ -50,19 +74,20 @@ export default function ProjectDetailsModal({
     return () => window.removeEventListener("keydown", handleKey);
   }, [handleClose]);
 
-  const persistLinks = useCallback(
-    async (newLinks: ProjectLink[]) => {
+  const persistProject = useCallback(
+    async (newLinks: ProjectLink[], newAccounts: ProjectAccount[]) => {
       setSaving(true);
-      const updatedProject = { ...project, links: newLinks };
+      const updatedProject = { ...project, links: newLinks, accounts: newAccounts };
       onUpdate(updatedProject);
       setLinks(newLinks);
+      setAccounts(newAccounts);
       setSaving(false);
     },
     [project, onUpdate]
   );
 
   const handleAddLink = () => {
-    const trimmedLabel = formLabel.trim();
+    const trimmedLabel = formLinkLabel.trim();
     const trimmedUrl = formUrl.trim();
     if (!trimmedLabel) {
       setFormError("El label es obligatorio.");
@@ -76,30 +101,28 @@ export default function ProjectDetailsModal({
     const newLink: ProjectLink = {
       label: trimmedLabel,
       url: trimmedUrl,
-      color: formColor,
+      color: formLinkColor,
     };
 
     const newLinks = [...links, newLink];
-    setLinks(newLinks);
-    persistLinks(newLinks);
-    setFormLabel("");
+    persistProject(newLinks, accounts);
+    setFormLinkLabel("");
     setFormUrl("");
-    setFormColor("blue");
+    setFormLinkColor("blue");
     setFormError(null);
     setShowLinkForm(false);
   };
 
   const handleDeleteLink = (index: number) => {
     const newLinks = links.filter((_, i) => i !== index);
-    setLinks(newLinks);
-    persistLinks(newLinks);
+    persistProject(newLinks, accounts);
   };
 
   const handleCopyUrl = async (url: string, index: number) => {
     try {
       await navigator.clipboard.writeText(url);
-      setCopiedId(index);
-      setTimeout(() => setCopiedId(null), 2000);
+      setCopiedLinkId(index);
+      setTimeout(() => setCopiedLinkId(null), 2000);
     } catch {
       const textarea = document.createElement("textarea");
       textarea.value = url;
@@ -107,8 +130,60 @@ export default function ProjectDetailsModal({
       textarea.select();
       document.execCommand("copy");
       document.body.removeChild(textarea);
-      setCopiedId(index);
-      setTimeout(() => setCopiedId(null), 2000);
+      setCopiedLinkId(index);
+      setTimeout(() => setCopiedLinkId(null), 2000);
+    }
+  };
+
+  const handleAddAccount = () => {
+    const trimmedLabel = formAccountLabel.trim();
+    const trimmedUser = formAccountUsername.trim();
+    const trimmedPass = formAccountPassword.trim();
+    if (!trimmedUser) {
+      setFormError("El usuario es obligatorio.");
+      return;
+    }
+    if (!trimmedPass) {
+      setFormError("La contraseña es obligatoria.");
+      return;
+    }
+
+    const newAccount: ProjectAccount = {
+      name: trimmedLabel || trimmedUser,
+      username: trimmedUser,
+      password: trimmedPass,
+      color: formAccountColor,
+    };
+
+    const newAccounts = [...accounts, newAccount];
+    persistProject(links, newAccounts);
+    setFormAccountLabel("");
+    setFormAccountUsername("");
+    setFormAccountPassword("");
+    setFormAccountColor("blue");
+    setFormError(null);
+    setShowAccountForm(false);
+  };
+
+  const handleDeleteAccount = (index: number) => {
+    const newAccounts = accounts.filter((_, i) => i !== index);
+    persistProject(links, newAccounts);
+  };
+
+  const handleCopyText = async (text: string, setId: (id: number | null) => void, index: number) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setId(index);
+      setTimeout(() => setId(null), 2000);
+    } catch {
+      const textarea = document.createElement("textarea");
+      textarea.value = text;
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textarea);
+      setId(index);
+      setTimeout(() => setId(null), 2000);
     }
   };
 
@@ -158,6 +233,7 @@ export default function ProjectDetailsModal({
                 className="inline-flex items-center gap-1.5 px-2.5 py-1.25 rounded-md bg-[rgba(99,102,241,0.1)] border-none text-[var(--accent)] text-[0.6875rem] font-semibold cursor-pointer transition-all duration-150 font-[inherit] hover:bg-[rgba(99,102,241,0.18)] disabled:opacity-40 disabled:cursor-not-allowed"
                 onClick={() => {
                   setShowLinkForm(true);
+                  setShowAccountForm(false);
                   setFormError(null);
                 }}
                 disabled={showLinkForm || saving}
@@ -179,9 +255,9 @@ export default function ProjectDetailsModal({
                     className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] rounded-lg px-3 py-2 text-[0.8125rem] text-[var(--foreground)] outline-none transition-all duration-150 font-[inherit] placeholder:text-zinc-600 focus:border-[var(--accent)] focus:shadow-[0_0_0_2px_rgba(99,102,241,0.1)]"
                     type="text"
                     placeholder="GitHub, Staging..."
-                    value={formLabel}
+                    value={formLinkLabel}
                     onChange={(e) => {
-                      setFormLabel(e.target.value);
+                      setFormLinkLabel(e.target.value);
                       if (formError) setFormError(null);
                     }}
                     autoFocus
@@ -195,10 +271,10 @@ export default function ProjectDetailsModal({
                         key={c}
                         type="button"
                         className={`w-6 h-6 rounded-full border-2 cursor-pointer transition-all duration-150 hover:scale-[1.15] ${
-                          formColor === c ? "border-[var(--foreground)] shadow-[0_0_0_2px_var(--card-bg),0_0_0_4px_var(--accent)]" : "border-transparent"
+                          formLinkColor === c ? "border-[var(--foreground)] shadow-[0_0_0_2px_var(--card-bg),0_0_0_4px_var(--accent)]" : "border-transparent"
                         }`}
                         style={{ backgroundColor: LINK_COLOR_MAP[c].dot }}
-                        onClick={() => setFormColor(c)}
+                        onClick={() => setFormLinkColor(c)}
                         aria-label={`Color ${c}`}
                       />
                     ))}
@@ -223,7 +299,7 @@ export default function ProjectDetailsModal({
                     className="inline-flex items-center justify-center px-3.5 py-1.75 rounded-lg text-xs font-semibold border border-[var(--input-border)] bg-transparent text-zinc-500 cursor-pointer transition-all duration-200 font-[inherit] hover:bg-white/4 hover:text-[var(--foreground)]"
                     onClick={() => {
                       setShowLinkForm(false);
-                      setFormLabel("");
+                      setFormLinkLabel("");
                       setFormUrl("");
                       setFormError(null);
                     }}
@@ -258,7 +334,7 @@ export default function ProjectDetailsModal({
                           aria-label="Copiar URL"
                           title="Copiar URL"
                         >
-                          {copiedId === index ? (
+                          {copiedLinkId === index ? (
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                               <polyline points="20 6 9 17 4 12" />
                             </svg>
@@ -293,7 +369,7 @@ export default function ProjectDetailsModal({
             </div>
           </div>
 
-          {/* Accounts Column (placeholder) */}
+          {/* Accounts Column */}
           <div className="flex flex-col">
             <div className="flex items-center justify-between mb-3">
               <h3 className="flex items-center gap-2 text-[0.8125rem] font-semibold text-[var(--foreground)] m-0 uppercase tracking-wider">
@@ -303,8 +379,182 @@ export default function ProjectDetailsModal({
                 </svg>
                 Usuarios
               </h3>
+              <button
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.25 rounded-md bg-[rgba(99,102,241,0.1)] border-none text-[var(--accent)] text-[0.6875rem] font-semibold cursor-pointer transition-all duration-150 font-[inherit] hover:bg-[rgba(99,102,241,0.18)] disabled:opacity-40 disabled:cursor-not-allowed"
+                onClick={() => {
+                  setShowAccountForm(true);
+                  setShowLinkForm(false);
+                  setFormError(null);
+                }}
+                disabled={showAccountForm || saving}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="12" y1="5" x2="12" y2="19" />
+                  <line x1="5" y1="12" x2="19" y2="12" />
+                </svg>
+                Agregar
+              </button>
             </div>
-            <p className="text-sm text-zinc-600 text-center py-6 m-0">Próximamente.</p>
+
+            {/* Account form */}
+            {showAccountForm && (
+              <div className="bg-white/[0.02] border border-[var(--card-border)] rounded-xl p-3.5 mb-3">
+                <div className="mb-2.5">
+                  <label className="block text-[0.6875rem] font-medium text-zinc-500 mb-1 uppercase tracking-wide">Label (opcional)</label>
+                  <input
+                    className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] rounded-lg px-3 py-2 text-[0.8125rem] text-[var(--foreground)] outline-none transition-all duration-150 font-[inherit] placeholder:text-zinc-600 focus:border-[var(--accent)] focus:shadow-[0_0_0_2px_rgba(99,102,241,0.1)]"
+                    type="text"
+                    placeholder="Admin, Testing..."
+                    value={formAccountLabel}
+                    onChange={(e) => {
+                      setFormAccountLabel(e.target.value);
+                      if (formError) setFormError(null);
+                    }}
+                    autoFocus
+                  />
+                </div>
+                <div className="mb-2.5">
+                  <label className="block text-[0.6875rem] font-medium text-zinc-500 mb-1 uppercase tracking-wide">Color</label>
+                  <div className="flex gap-1.5">
+                    {ACCOUNT_COLORS.map((c) => (
+                      <button
+                        key={c}
+                        type="button"
+                        className={`w-6 h-6 rounded-full border-2 cursor-pointer transition-all duration-150 hover:scale-[1.15] ${
+                          formAccountColor === c ? "border-[var(--foreground)] shadow-[0_0_0_2px_var(--card-bg),0_0_0_4px_var(--accent)]" : "border-transparent"
+                        }`}
+                        style={{ backgroundColor: ACCOUNT_COLOR_MAP[c].dot }}
+                        onClick={() => setFormAccountColor(c)}
+                        aria-label={`Color ${c}`}
+                      />
+                    ))}
+                  </div>
+                </div>
+                <div className="mb-2.5">
+                  <label className="block text-[0.6875rem] font-medium text-zinc-500 mb-1 uppercase tracking-wide">Usuario</label>
+                  <input
+                    className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] rounded-lg px-3 py-2 text-[0.8125rem] text-[var(--foreground)] outline-none transition-all duration-150 font-[inherit] placeholder:text-zinc-600 focus:border-[var(--accent)] focus:shadow-[0_0_0_2px_rgba(99,102,241,0.1)]"
+                    type="text"
+                    placeholder="usuario@ejemplo.com"
+                    value={formAccountUsername}
+                    onChange={(e) => {
+                      setFormAccountUsername(e.target.value);
+                      if (formError) setFormError(null);
+                    }}
+                  />
+                </div>
+                <div className="mb-2.5">
+                  <label className="block text-[0.6875rem] font-medium text-zinc-500 mb-1 uppercase tracking-wide">Contraseña</label>
+                  <input
+                    className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] rounded-lg px-3 py-2 text-[0.8125rem] text-[var(--foreground)] outline-none transition-all duration-150 font-[inherit] placeholder:text-zinc-600 focus:border-[var(--accent)] focus:shadow-[0_0_0_2px_rgba(99,102,241,0.1)]"
+                    type="text"
+                    placeholder="••••••••"
+                    value={formAccountPassword}
+                    onChange={(e) => {
+                      setFormAccountPassword(e.target.value);
+                      if (formError) setFormError(null);
+                    }}
+                  />
+                </div>
+                {formError && <p className="text-xs text-[var(--danger)] mt-1.5">{formError}</p>}
+                <div className="flex items-center justify-end gap-2 mt-3 pt-2.5 border-t border-[var(--card-border)]">
+                  <button
+                    className="inline-flex items-center justify-center px-3.5 py-1.75 rounded-lg text-xs font-semibold border border-[var(--input-border)] bg-transparent text-zinc-500 cursor-pointer transition-all duration-200 font-[inherit] hover:bg-white/4 hover:text-[var(--foreground)]"
+                    onClick={() => {
+                      setShowAccountForm(false);
+                      setFormAccountLabel("");
+                      setFormAccountUsername("");
+                      setFormAccountPassword("");
+                      setFormError(null);
+                    }}
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    className="inline-flex items-center justify-center px-3.5 py-1.75 rounded-lg text-xs font-semibold border-none bg-[var(--accent)] text-white cursor-pointer transition-all duration-200 font-[inherit] shadow-[0_2px_12px_rgba(99,102,241,0.3)] hover:bg-[var(--accent-hover)]"
+                    onClick={handleAddAccount}
+                  >
+                    Guardar
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Accounts list */}
+            <div className="flex flex-col gap-2">
+              {accounts.map((account, index) => {
+                const colors = ACCOUNT_COLOR_MAP[account.color] || ACCOUNT_COLOR_MAP.blue;
+                return (
+                  <div key={index} className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl p-3 transition-[border-color] duration-150 hover:border-[#2a2a32]">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2 text-[0.8125rem] font-semibold text-[var(--foreground)]">
+                        <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: colors.dot }} />
+                        <span>{account.name}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button
+                          className="flex items-center justify-center w-6 h-6 rounded-md bg-transparent border-none text-zinc-500 cursor-pointer transition-all duration-150 hover:bg-[rgba(99,102,241,0.1)] hover:text-[var(--accent-hover)]"
+                          onClick={() => handleCopyText(account.username, setCopiedUserId, index)}
+                          aria-label="Copiar usuario"
+                          title="Copiar usuario"
+                        >
+                          {copiedUserId === index ? (
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="20 6 9 17 4 12" />
+                            </svg>
+                          ) : (
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                            </svg>
+                          )}
+                        </button>
+                        <button
+                          className="flex items-center justify-center w-6 h-6 rounded-md bg-transparent border-none text-zinc-500 cursor-pointer transition-all duration-150 hover:bg-[rgba(99,102,241,0.1)] hover:text-[var(--accent-hover)]"
+                          onClick={() => handleCopyText(account.password, setCopiedPassId, index)}
+                          aria-label="Copiar contraseña"
+                          title="Copiar contraseña"
+                        >
+                          {copiedPassId === index ? (
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="20 6 9 17 4 12" />
+                            </svg>
+                          ) : (
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                            </svg>
+                          )}
+                        </button>
+                        <button
+                          className="flex items-center justify-center w-6 h-6 rounded-md bg-transparent border-none text-zinc-500 cursor-pointer transition-all duration-150 hover:bg-[rgba(239,68,68,0.1)] hover:text-[var(--danger)]"
+                          onClick={() => handleDeleteAccount(index)}
+                          aria-label={`Eliminar ${account.name}`}
+                        >
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <line x1="18" y1="6" x2="6" y2="18" />
+                            <line x1="6" y1="6" x2="18" y2="18" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                    <div className="rounded-md px-2 py-1.5 space-y-1" style={{ backgroundColor: colors.bg }}>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[0.6875rem] text-zinc-400 uppercase tracking-wide w-16">Usuario</span>
+                        <code className="text-[0.6875rem] font-mono text-[var(--foreground)] leading-snug">{account.username}</code>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[0.6875rem] text-zinc-400 uppercase tracking-wide w-16">Pass</span>
+                        <code className="text-[0.6875rem] font-mono text-[var(--foreground)] leading-snug">{account.password}</code>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+              {accounts.length === 0 && !showAccountForm && (
+                <p className="text-sm text-zinc-600 text-center py-6 m-0">No hay usuarios aún.</p>
+              )}
+            </div>
           </div>
         </div>
       </div>
