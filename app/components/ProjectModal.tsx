@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import type { Project } from "../types";
 
 export interface ProjectFormData {
   name: string;
@@ -12,6 +13,7 @@ interface ProjectModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (data: ProjectFormData) => void;
+  project?: Project | null;
 }
 
 const DEFAULT_COLORS = [
@@ -28,11 +30,25 @@ const DEFAULT_COLORS = [
 
 const DEFAULT_COLOR = DEFAULT_COLORS[0];
 
-export default function ProjectModal({ isOpen, onClose, onSave }: ProjectModalProps) {
+export default function ProjectModal({ isOpen, onClose, onSave, project }: ProjectModalProps) {
   const [name, setName] = useState("");
   const [color, setColor] = useState(DEFAULT_COLOR);
   const [description, setDescription] = useState("");
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isOpen && project) {
+      setName(project.name);
+      setColor(project.color);
+      setDescription(project.description);
+      setError(null);
+    } else if (isOpen) {
+      setName("");
+      setColor(DEFAULT_COLOR);
+      setDescription("");
+      setError(null);
+    }
+  }, [isOpen, project]);
 
   const handleClose = useCallback(() => {
     setName("");
@@ -74,7 +90,7 @@ export default function ProjectModal({ isOpen, onClose, onSave }: ProjectModalPr
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-[1.0625rem] font-semibold text-[var(--foreground)] m-0">Nuevo Proyecto</h2>
+          <h2 className="text-[1.0625rem] font-semibold text-[var(--foreground)] m-0">{project ? "Editar Proyecto" : "Nuevo Proyecto"}</h2>
           <button
             className="flex items-center justify-center w-8 h-8 rounded-lg bg-transparent border-none text-zinc-500 cursor-pointer transition-all duration-150 hover:bg-white/6 hover:text-[var(--foreground)]"
             onClick={handleClose}
@@ -155,7 +171,7 @@ export default function ProjectModal({ isOpen, onClose, onSave }: ProjectModalPr
               type="submit"
               className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-[0.8125rem] font-semibold border-none bg-[var(--accent)] text-white cursor-pointer transition-all duration-200 font-[inherit] shadow-[0_2px_12px_rgba(99,102,241,0.3)] hover:bg-[var(--accent-hover)] hover:shadow-[0_4px_20px_rgba(99,102,241,0.4)] hover:-translate-y-px"
             >
-              Crear Proyecto
+              {project ? "Guardar Cambios" : "Crear Proyecto"}
             </button>
           </div>
         </form>

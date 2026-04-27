@@ -15,6 +15,7 @@ export default function ProyectosPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -50,11 +51,55 @@ export default function ProyectosPage() {
   }, []);
 
   const handleNewProject = () => {
+    setEditingProject(null);
     setIsModalOpen(true);
+  };
+
+  const handleEditProject = (id: string) => {
+    const project = projects.find((p) => p.id === id);
+    if (project) {
+      setEditingProject(project);
+      setIsModalOpen(true);
+    }
   };
 
   const handleSaveProject = useCallback(async (data: ProjectFormData) => {
     const supabase = createClient();
+
+    if (editingProject) {
+      const updated: Project = {
+        ...editingProject,
+        name: data.name,
+        color: data.color,
+        description: data.description,
+      };
+
+      setProjects((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+      if (selectedProject?.id === updated.id) {
+        setSelectedProject(updated);
+      }
+      setEditingProject(null);
+
+      const { error: updateError } = await supabase
+        .from("projects")
+        .update({
+          name: updated.name,
+          color: updated.color,
+          description: updated.description,
+        })
+        .eq("id", updated.id);
+
+      if (updateError) {
+        console.error("Error updating project:", updateError);
+        const { data: refreshed } = await supabase
+          .from("projects")
+          .select("*")
+          .order("created_at", { ascending: false });
+        if (refreshed) setProjects((refreshed as DbProject[]).map(dbToProject));
+      }
+      return;
+    }
+
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -95,7 +140,7 @@ export default function ProyectosPage() {
     setProjects((prev) =>
       prev.map((p) => (p.id === tempId ? realProject : p))
     );
-  }, []);
+  }, [editingProject, selectedProject]);
 
   const handleDeleteProject = useCallback(async (id: string) => {
     setProjects((prev) => prev.filter((p) => p.id !== id));
@@ -128,11 +173,17 @@ export default function ProyectosPage() {
     const supabase = createClient();
     const { error: updateError } = await supabase
       .from("projects")
-      .update({ links: updated.links, accounts: updated.accounts })
+      .update({
+        name: updated.name,
+        color: updated.color,
+        description: updated.description,
+        links: updated.links,
+        accounts: updated.accounts,
+      })
       .eq("id", updated.id);
 
     if (updateError) {
-      console.error("Error updating project links:", updateError);
+      console.error("Error updating project:", updateError);
       const { data } = await supabase
         .from("projects")
         .select("*")
@@ -209,6 +260,7 @@ export default function ProyectosPage() {
                 project={project}
                 onDelete={handleDeleteProject}
                 onView={handleViewProject}
+                onEdit={handleEditProject}
               />
             ))}
           </div>
@@ -217,8 +269,12 @@ export default function ProyectosPage() {
 
       <ProjectModal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        onClose={() => {
+          setIsModalOpen(false);
+          setEditingProject(null);
+        }}
         onSave={handleSaveProject}
+        project={editingProject}
       />
 
       {selectedProject && (

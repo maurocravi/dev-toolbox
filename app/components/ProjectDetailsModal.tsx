@@ -48,6 +48,7 @@ export default function ProjectDetailsModal({
   const [formLinkLabel, setFormLinkLabel] = useState("");
   const [formUrl, setFormUrl] = useState("");
   const [formLinkColor, setFormLinkColor] = useState<"blue" | "red">("blue");
+  const [editingLinkIndex, setEditingLinkIndex] = useState<number | null>(null);
 
   const [accounts, setAccounts] = useState<ProjectAccount[]>(project.accounts);
   const [showAccountForm, setShowAccountForm] = useState(false);
@@ -55,6 +56,7 @@ export default function ProjectDetailsModal({
   const [formAccountUsername, setFormAccountUsername] = useState("");
   const [formAccountPassword, setFormAccountPassword] = useState("");
   const [formAccountColor, setFormAccountColor] = useState<"blue" | "red">("blue");
+  const [editingAccountIndex, setEditingAccountIndex] = useState<number | null>(null);
 
   const [formError, setFormError] = useState<string | null>(null);
   const [copiedLinkId, setCopiedLinkId] = useState<number | null>(null);
@@ -104,18 +106,34 @@ export default function ProjectDetailsModal({
       color: formLinkColor,
     };
 
-    const newLinks = [...links, newLink];
+    const newLinks =
+      editingLinkIndex !== null
+        ? links.map((l, i) => (i === editingLinkIndex ? newLink : l))
+        : [...links, newLink];
+
     persistProject(newLinks, accounts);
     setFormLinkLabel("");
     setFormUrl("");
     setFormLinkColor("blue");
     setFormError(null);
     setShowLinkForm(false);
+    setEditingLinkIndex(null);
   };
 
   const handleDeleteLink = (index: number) => {
     const newLinks = links.filter((_, i) => i !== index);
     persistProject(newLinks, accounts);
+  };
+
+  const handleEditLink = (index: number) => {
+    const link = links[index];
+    setFormLinkLabel(link.label);
+    setFormUrl(link.url);
+    setFormLinkColor(link.color);
+    setEditingLinkIndex(index);
+    setShowLinkForm(true);
+    setShowAccountForm(false);
+    setFormError(null);
   };
 
   const handleCopyUrl = async (url: string, index: number) => {
@@ -155,7 +173,11 @@ export default function ProjectDetailsModal({
       color: formAccountColor,
     };
 
-    const newAccounts = [...accounts, newAccount];
+    const newAccounts =
+      editingAccountIndex !== null
+        ? accounts.map((a, i) => (i === editingAccountIndex ? newAccount : a))
+        : [...accounts, newAccount];
+
     persistProject(links, newAccounts);
     setFormAccountLabel("");
     setFormAccountUsername("");
@@ -163,11 +185,24 @@ export default function ProjectDetailsModal({
     setFormAccountColor("blue");
     setFormError(null);
     setShowAccountForm(false);
+    setEditingAccountIndex(null);
   };
 
   const handleDeleteAccount = (index: number) => {
     const newAccounts = accounts.filter((_, i) => i !== index);
     persistProject(links, newAccounts);
+  };
+
+  const handleEditAccount = (index: number) => {
+    const account = accounts[index];
+    setFormAccountLabel(account.name === account.username ? "" : account.name);
+    setFormAccountUsername(account.username);
+    setFormAccountPassword(account.password);
+    setFormAccountColor(account.color);
+    setEditingAccountIndex(index);
+    setShowAccountForm(true);
+    setShowLinkForm(false);
+    setFormError(null);
   };
 
   const handleCopyText = async (text: string, setId: (id: number | null) => void, index: number) => {
@@ -193,7 +228,7 @@ export default function ProjectDetailsModal({
       onClick={handleClose}
     >
       <div
-        className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl w-full max-w-[720px] max-h-[85vh] overflow-y-auto p-6 animate-[slideUp_0.2s_ease]"
+        className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl w-full max-w-[720px] max-h-[85vh] overflow-y-auto custom-scrollbar p-6 animate-[slideUp_0.2s_ease]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -235,6 +270,10 @@ export default function ProjectDetailsModal({
                   setShowLinkForm(true);
                   setShowAccountForm(false);
                   setFormError(null);
+                  setEditingLinkIndex(null);
+                  setFormLinkLabel("");
+                  setFormUrl("");
+                  setFormLinkColor("blue");
                 }}
                 disabled={showLinkForm || saving}
               >
@@ -301,6 +340,8 @@ export default function ProjectDetailsModal({
                       setShowLinkForm(false);
                       setFormLinkLabel("");
                       setFormUrl("");
+                      setFormLinkColor("blue");
+                      setEditingLinkIndex(null);
                       setFormError(null);
                     }}
                   >
@@ -310,7 +351,7 @@ export default function ProjectDetailsModal({
                     className="inline-flex items-center justify-center px-3.5 py-1.75 rounded-lg text-xs font-semibold border-none bg-[var(--accent)] text-white cursor-pointer transition-all duration-200 font-[inherit] shadow-[0_2px_12px_rgba(99,102,241,0.3)] hover:bg-[var(--accent-hover)]"
                     onClick={handleAddLink}
                   >
-                    Guardar
+                    {editingLinkIndex !== null ? "Guardar Cambios" : "Guardar"}
                   </button>
                 </div>
               </div>
@@ -328,6 +369,17 @@ export default function ProjectDetailsModal({
                         <span>{link.label}</span>
                       </div>
                       <div className="flex items-center gap-1">
+                        <button
+                          className="flex items-center justify-center w-6 h-6 rounded-md bg-transparent border-none text-zinc-500 cursor-pointer transition-all duration-150 hover:bg-[rgba(99,102,241,0.1)] hover:text-[var(--accent-hover)]"
+                          onClick={() => handleEditLink(index)}
+                          aria-label="Editar URL"
+                          title="Editar URL"
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                          </svg>
+                        </button>
                         <button
                           className="flex items-center justify-center w-6 h-6 rounded-md bg-transparent border-none text-zinc-500 cursor-pointer transition-all duration-150 hover:bg-[rgba(99,102,241,0.1)] hover:text-[var(--accent-hover)]"
                           onClick={() => handleCopyUrl(link.url, index)}
@@ -385,6 +437,11 @@ export default function ProjectDetailsModal({
                   setShowAccountForm(true);
                   setShowLinkForm(false);
                   setFormError(null);
+                  setEditingAccountIndex(null);
+                  setFormAccountLabel("");
+                  setFormAccountUsername("");
+                  setFormAccountPassword("");
+                  setFormAccountColor("blue");
                 }}
                 disabled={showAccountForm || saving}
               >
@@ -465,6 +522,8 @@ export default function ProjectDetailsModal({
                       setFormAccountLabel("");
                       setFormAccountUsername("");
                       setFormAccountPassword("");
+                      setFormAccountColor("blue");
+                      setEditingAccountIndex(null);
                       setFormError(null);
                     }}
                   >
@@ -474,7 +533,7 @@ export default function ProjectDetailsModal({
                     className="inline-flex items-center justify-center px-3.5 py-1.75 rounded-lg text-xs font-semibold border-none bg-[var(--accent)] text-white cursor-pointer transition-all duration-200 font-[inherit] shadow-[0_2px_12px_rgba(99,102,241,0.3)] hover:bg-[var(--accent-hover)]"
                     onClick={handleAddAccount}
                   >
-                    Guardar
+                    {editingAccountIndex !== null ? "Guardar Cambios" : "Guardar"}
                   </button>
                 </div>
               </div>
@@ -492,6 +551,17 @@ export default function ProjectDetailsModal({
                         <span>{account.name}</span>
                       </div>
                       <div className="flex items-center gap-1">
+                        <button
+                          className="flex items-center justify-center w-6 h-6 rounded-md bg-transparent border-none text-zinc-500 cursor-pointer transition-all duration-150 hover:bg-[rgba(99,102,241,0.1)] hover:text-[var(--accent-hover)]"
+                          onClick={() => handleEditAccount(index)}
+                          aria-label="Editar usuario"
+                          title="Editar usuario"
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                          </svg>
+                        </button>
                         <button
                           className="flex items-center justify-center w-6 h-6 rounded-md bg-transparent border-none text-zinc-500 cursor-pointer transition-all duration-150 hover:bg-[rgba(99,102,241,0.1)] hover:text-[var(--accent-hover)]"
                           onClick={() => handleCopyText(account.username, setCopiedUserId, index)}
