@@ -4,6 +4,7 @@ export interface TimeLog {
   startTime: string; // ISO string
   endTime: string;   // ISO string
   duration: number;  // in seconds
+  isLoggedJira: boolean;
 }
 
 // DB row shape (snake_case columns in Supabase)
@@ -13,6 +14,7 @@ export interface DbLog {
   start_time: string;
   end_time: string;
   duration: number;
+  is_logged_jira: boolean;
 }
 
 export function dbToTimeLog(row: DbLog): TimeLog {
@@ -22,6 +24,7 @@ export function dbToTimeLog(row: DbLog): TimeLog {
     startTime: row.start_time,
     endTime: row.end_time,
     duration: row.duration,
+    isLoggedJira: row.is_logged_jira ?? false,
   };
 }
 
@@ -32,6 +35,7 @@ export function timeLogToDb(log: TimeLog): DbLog {
     start_time: log.startTime,
     end_time: log.endTime,
     duration: log.duration,
+    is_logged_jira: log.isLoggedJira,
   };
 }
 

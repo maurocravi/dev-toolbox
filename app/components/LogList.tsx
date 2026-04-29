@@ -8,6 +8,7 @@ interface LogListProps {
   groupedLogs: Map<string, TimeLog[]>;
   onDeleteLog: (id: string) => Promise<void>;
   onUpdateLog: (updatedLog: TimeLog) => Promise<void>;
+  onToggleJira: (logId: string, currentStatus: boolean) => Promise<void>;
   hasMore: boolean;
   onLoadMore: () => void;
 }
@@ -70,6 +71,7 @@ export default function LogList({
   groupedLogs,
   onDeleteLog,
   onUpdateLog,
+  onToggleJira,
   hasMore,
   onLoadMore,
 }: LogListProps) {
@@ -77,6 +79,7 @@ export default function LogList({
   const [editTaskName, setEditTaskName] = useState("");
   const [editDuration, setEditDuration] = useState("");
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [togglingJiraId, setTogglingJiraId] = useState<string | null>(null);
 
   const startEditing = (log: TimeLog) => {
     setEditingId(log.id);
@@ -115,6 +118,12 @@ export default function LogList({
     setEditingId(null);
     setEditTaskName("");
     setEditDuration("");
+  };
+
+  const handleToggleJira = async (log: TimeLog) => {
+    setTogglingJiraId(log.id);
+    await onToggleJira(log.id, log.isLoggedJira);
+    setTogglingJiraId(null);
   };
 
   if (visibleDays.length === 0) {
@@ -217,71 +226,99 @@ export default function LogList({
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2">
-                        {isEditing ? (
-                          <>
-                            <input
-                              type="text"
-                              value={editDuration}
-                              onChange={(e) => setEditDuration(e.target.value)}
-                              className="w-[90px] text-center font-mono font-semibold bg-[var(--input-bg)] border border-[var(--input-border)] rounded-lg px-2 py-1.5 text-[0.8125rem] text-[var(--foreground)] outline-none transition-[border-color,box-shadow] duration-150 flex-shrink-0 focus:border-[var(--accent)] focus:shadow-[0_0_0_2px_rgba(99,102,241,0.1)]"
-                              placeholder="HH:MM:SS"
-                              maxLength={8}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") saveEdit(log);
-                                if (e.key === "Escape") cancelEditing();
-                              }}
-                            />
-                            <button
-                              onClick={() => saveEdit(log)}
-                              className="flex items-center justify-center w-7 h-7 rounded-lg bg-transparent border-none cursor-pointer transition-all duration-150 flex-shrink-0 text-[var(--success)] hover:bg-[rgba(16,185,129,0.12)] hover:text-[#34d399] disabled:opacity-40 disabled:cursor-not-allowed"
-                              aria-label="Guardar cambios"
-                              disabled={isSaving}
-                            >
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <div className="flex flex-col items-end gap-1.5">
+                        <div className="flex items-center gap-2">
+                          {isEditing ? (
+                            <>
+                              <input
+                                type="text"
+                                value={editDuration}
+                                onChange={(e) => setEditDuration(e.target.value)}
+                                className="w-[90px] text-center font-mono font-semibold bg-[var(--input-bg)] border border-[var(--input-border)] rounded-lg px-2 py-1.5 text-[0.8125rem] text-[var(--foreground)] outline-none transition-[border-color,box-shadow] duration-150 flex-shrink-0 focus:border-[var(--accent)] focus:shadow-[0_0_0_2px_rgba(99,102,241,0.1)]"
+                                placeholder="HH:MM:SS"
+                                maxLength={8}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") saveEdit(log);
+                                  if (e.key === "Escape") cancelEditing();
+                                }}
+                              />
+                              <button
+                                onClick={() => saveEdit(log)}
+                                className="flex items-center justify-center w-7 h-7 rounded-lg bg-transparent border-none cursor-pointer transition-all duration-150 flex-shrink-0 text-[var(--success)] hover:bg-[rgba(16,185,129,0.12)] hover:text-[#34d399] disabled:opacity-40 disabled:cursor-not-allowed"
+                                aria-label="Guardar cambios"
+                                disabled={isSaving}
+                              >
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                  <polyline points="20 6 9 17 4 12" />
+                                </svg>
+                              </button>
+                              <button
+                                onClick={cancelEditing}
+                                className="flex items-center justify-center w-7 h-7 rounded-lg bg-transparent border-none cursor-pointer transition-all duration-150 flex-shrink-0 text-zinc-500 hover:bg-[rgba(239,68,68,0.1)] hover:text-[var(--danger)] disabled:opacity-40 disabled:cursor-not-allowed"
+                                aria-label="Cancelar edición"
+                                disabled={isSaving}
+                              >
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <line x1="18" y1="6" x2="6" y2="18" />
+                                  <line x1="6" y1="6" x2="18" y2="18" />
+                                </svg>
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <span className="font-mono text-[0.8125rem] font-semibold text-[var(--foreground)] bg-[var(--input-bg)] px-2.5 py-1 rounded-lg whitespace-nowrap">
+                                {formatDuration(log.duration)}
+                              </span>
+                              <button
+                                onClick={() => startEditing(log)}
+                                className="flex items-center justify-center w-7 h-7 rounded-lg bg-transparent border-none cursor-pointer transition-all duration-150 flex-shrink-0 text-zinc-500 hover:bg-[rgba(99,102,241,0.1)] hover:text-[var(--accent-hover)] disabled:opacity-40 disabled:cursor-not-allowed"
+                                aria-label={`Editar registro ${log.taskName}`}
+                                disabled={savingId !== null || togglingJiraId !== null}
+                              >
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                                </svg>
+                              </button>
+                              <button
+                                onClick={() => onDeleteLog(log.id)}
+                                className="flex items-center justify-center w-7 h-7 rounded-lg bg-transparent border-none cursor-pointer transition-all duration-150 flex-shrink-0 text-zinc-500 hover:bg-[rgba(239,68,68,0.1)] hover:text-[var(--danger)] disabled:opacity-40 disabled:cursor-not-allowed"
+                                aria-label={`Eliminar registro ${log.taskName}`}
+                                disabled={savingId !== null || togglingJiraId !== null}
+                              >
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <line x1="18" y1="6" x2="6" y2="18" />
+                                  <line x1="6" y1="6" x2="18" y2="18" />
+                                </svg>
+                              </button>
+                            </>
+                          )}
+                        </div>
+                        {!isEditing && (
+                          <button
+                            onClick={() => handleToggleJira(log)}
+                            disabled={togglingJiraId === log.id}
+                            className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[0.6875rem] font-medium border transition-all duration-200 cursor-pointer ${
+                              log.isLoggedJira
+                                ? "text-emerald-400 border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20"
+                                : "text-neutral-500 border-neutral-700 bg-neutral-800/50 hover:bg-neutral-800 hover:text-neutral-400"
+                            } disabled:opacity-50 disabled:cursor-not-allowed`}
+                            aria-label={log.isLoggedJira ? "Marcar como no logueado en Jira" : "Marcar como logueado en Jira"}
+                          >
+                            {togglingJiraId === log.id ? (
+                              <div className="w-2.5 h-2.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                            ) : log.isLoggedJira ? (
+                              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                                 <polyline points="20 6 9 17 4 12" />
                               </svg>
-                            </button>
-                            <button
-                              onClick={cancelEditing}
-                              className="flex items-center justify-center w-7 h-7 rounded-lg bg-transparent border-none cursor-pointer transition-all duration-150 flex-shrink-0 text-zinc-500 hover:bg-[rgba(239,68,68,0.1)] hover:text-[var(--danger)] disabled:opacity-40 disabled:cursor-not-allowed"
-                              aria-label="Cancelar edición"
-                              disabled={isSaving}
-                            >
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            ) : (
+                              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                                 <line x1="18" y1="6" x2="6" y2="18" />
                                 <line x1="6" y1="6" x2="18" y2="18" />
                               </svg>
-                            </button>
-                          </>
-                        ) : (
-                          <>
-                            <span className="font-mono text-[0.8125rem] font-semibold text-[var(--foreground)] bg-[var(--input-bg)] px-2.5 py-1 rounded-lg whitespace-nowrap">
-                              {formatDuration(log.duration)}
-                            </span>
-                            <button
-                              onClick={() => startEditing(log)}
-                              className="flex items-center justify-center w-7 h-7 rounded-lg bg-transparent border-none cursor-pointer transition-all duration-150 flex-shrink-0 text-zinc-500 hover:bg-[rgba(99,102,241,0.1)] hover:text-[var(--accent-hover)] disabled:opacity-40 disabled:cursor-not-allowed"
-                              aria-label={`Editar registro ${log.taskName}`}
-                              disabled={savingId !== null}
-                            >
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                              </svg>
-                            </button>
-                            <button
-                              onClick={() => onDeleteLog(log.id)}
-                              className="flex items-center justify-center w-7 h-7 rounded-lg bg-transparent border-none cursor-pointer transition-all duration-150 flex-shrink-0 text-zinc-500 hover:bg-[rgba(239,68,68,0.1)] hover:text-[var(--danger)] disabled:opacity-40 disabled:cursor-not-allowed"
-                              aria-label={`Eliminar registro ${log.taskName}`}
-                              disabled={savingId !== null}
-                            >
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <line x1="18" y1="6" x2="6" y2="18" />
-                                <line x1="6" y1="6" x2="18" y2="18" />
-                              </svg>
-                            </button>
-                          </>
+                            )}
+                            Logeado: {log.isLoggedJira ? "Sí" : "No"}
+                          </button>
                         )}
                       </div>
                     </li>

@@ -123,6 +123,28 @@ export default function Home() {
     }
   }, []);
 
+  const handleToggleJira = useCallback(async (logId: string, currentStatus: boolean) => {
+    const newStatus = !currentStatus;
+    setAllLogs((prev) =>
+      prev.map((log) => (log.id === logId ? { ...log, isLoggedJira: newStatus } : log))
+    );
+
+    const supabase = createClient();
+    const { error: updateError } = await supabase
+      .from("logs")
+      .update({ is_logged_jira: newStatus })
+      .eq("id", logId);
+
+    if (updateError) {
+      console.error("Error actualizando estado Jira:", updateError);
+      const { data } = await supabase
+        .from("logs")
+        .select("*")
+        .order("start_time", { ascending: false });
+      if (data) setAllLogs((data as DbLog[]).map(dbToTimeLog));
+    }
+  }, []);
+
   const groupedLogs = useMemo(() => groupLogsByDay(allLogs), [allLogs]);
 
   const uniqueDays = useMemo(() => {
@@ -212,6 +234,7 @@ export default function Home() {
           groupedLogs={groupedLogs}
           onDeleteLog={handleDeleteLog}
           onUpdateLog={handleUpdateLog}
+          onToggleJira={handleToggleJira}
           hasMore={hasMoreDays}
           onLoadMore={handleLoadMore}
         />

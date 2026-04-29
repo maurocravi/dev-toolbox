@@ -38,6 +38,7 @@ export default function TimerInput({ onLogCreated }: TimerInputProps) {
       startTime: startTimeRef.current.toISOString(),
       endTime: endTime.toISOString(),
       duration,
+      isLoggedJira: false,
     };
 
     if (intervalRef.current) clearInterval(intervalRef.current);
