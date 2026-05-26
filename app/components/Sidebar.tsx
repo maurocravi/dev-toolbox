@@ -45,7 +45,7 @@ export default function Sidebar() {
   };
 
   return (
-    <aside className="w-60 min-h-screen bg-[var(--card-bg)] border-r border-[var(--card-border)] flex flex-col flex-shrink-0">
+    <aside className="fixed left-0 top-0 w-60 h-screen bg-[var(--card-bg)] border-r border-[var(--card-border)] flex flex-col overflow-y-auto z-50">
       <div className="flex items-center gap-3 px-5 pt-6 mb-8">
         <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-[var(--accent)] to-[#8b5cf6] text-white">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

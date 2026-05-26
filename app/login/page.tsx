@@ -5,46 +5,31 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 export default function LoginPage() {
-  const [mode, setMode] = useState<"login" | "register">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
   const router = useRouter();
   const supabase = createClient();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    setMessage(null);
     setLoading(true);
 
-    if (mode === "login") {
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-      if (signInError) {
-        setError(signInError.message);
-        setLoading(false);
-        return;
-      }
-      router.push("/");
-      router.refresh();
-    } else {
-      const { error: signUpError } = await supabase.auth.signUp({
-        email,
-        password,
-      });
-      if (signUpError) {
-        setError(signUpError.message);
-        setLoading(false);
-        return;
-      }
-      setMessage("Registro exitoso. Revisa tu email para confirmar la cuenta.");
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (signInError) {
+      setError(signInError.message);
       setLoading(false);
+      return;
     }
+
+    router.push("/");
+    router.refresh();
   };
 
   return (
@@ -67,31 +52,15 @@ export default function LoginPage() {
         <div className="flex gap-1 mb-6 bg-white/[0.03] rounded-xl p-1 border border-[var(--card-border)]">
           <button
             type="button"
-            className={`flex-1 px-3 py-2 rounded-lg text-[0.8125rem] font-medium transition-all duration-200 ${
-              mode === "login"
-                ? "bg-[var(--accent)] text-white shadow-[0_2px_12px_rgba(99,102,241,0.3)]"
-                : "text-zinc-500 hover:text-[var(--foreground)]"
-            }`}
-            onClick={() => {
-              setMode("login");
-              setError(null);
-              setMessage(null);
-            }}
+            className="flex-1 px-3 py-2 rounded-lg text-[0.8125rem] font-medium transition-all duration-200 bg-[var(--accent)] text-white shadow-[0_2px_12px_rgba(99,102,241,0.3)]"
           >
             Iniciar sesión
           </button>
           <button
             type="button"
-            className={`flex-1 px-3 py-2 rounded-lg text-[0.8125rem] font-medium transition-all duration-200 ${
-              mode === "register"
-                ? "bg-[var(--accent)] text-white shadow-[0_2px_12px_rgba(99,102,241,0.3)]"
-                : "text-zinc-500 hover:text-[var(--foreground)]"
-            }`}
-            onClick={() => {
-              setMode("register");
-              setError(null);
-              setMessage(null);
-            }}
+            disabled
+            title="Los nuevos registros no están habilitados por ahora"
+            className="flex-1 px-3 py-2 rounded-lg text-[0.8125rem] font-medium transition-all duration-200 cursor-not-allowed text-zinc-600 bg-transparent"
           >
             Registrarse
           </button>
@@ -132,11 +101,6 @@ export default function LoginPage() {
               {error}
             </div>
           )}
-          {message && (
-            <div className="bg-[rgba(16,185,129,0.1)] border border-[rgba(16,185,129,0.2)] rounded-xl px-4 py-3 text-[0.8125rem] text-emerald-400">
-              {message}
-            </div>
-          )}
 
           <button
             type="submit"
@@ -146,12 +110,10 @@ export default function LoginPage() {
             {loading ? (
               <>
                 <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                {mode === "login" ? "Ingresando..." : "Registrando..."}
+                Ingresando...
               </>
-            ) : mode === "login" ? (
-              "Ingresar"
             ) : (
-              "Crear cuenta"
+              "Ingresar"
             )}
           </button>
         </form>

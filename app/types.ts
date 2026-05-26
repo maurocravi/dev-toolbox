@@ -7,6 +7,19 @@ export interface TimeLog {
   isLoggedJira: boolean;
 }
 
+// UUID v4 generator that works in all browser contexts (no crypto.randomUUID dependency)
+export function generateUUID(): string {
+  if (typeof crypto !== "undefined" && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  // Fallback for environments where crypto.randomUUID is not available
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
 // DB row shape (snake_case columns in Supabase)
 export interface DbLog {
   id: string;

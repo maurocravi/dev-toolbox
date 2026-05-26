@@ -45,6 +45,23 @@ function formatTimeOfDay(isoString: string): string {
   });
 }
 
+// Extract YYYY-MM-DD from an ISO string for a date input
+function toDateInputValue(isoString: string): string {
+  const date = new Date(isoString);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+// Combine a new date (YYYY-MM-DD) with the time from an original ISO string
+function combineDateWithTime(newDateValue: string, originalIso: string): string | null {
+  if (!newDateValue) return null;
+  const original = new Date(originalIso);
+  const [year, month, day] = newDateValue.split("-").map(Number);
+  const combined = new Date(year, month - 1, day, original.getHours(), original.getMinutes(), original.getSeconds(), original.getMilliseconds());
+  if (isNaN(combined.getTime())) return null;
+  return combined.toISOString();
+}
+
 function getTotalDuration(logs: TimeLog[]): number {
   return logs.reduce((acc, log) => acc + log.duration, 0);
 }
@@ -78,6 +95,7 @@ export default function LogList({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTaskName, setEditTaskName] = useState("");
   const [editDuration, setEditDuration] = useState("");
+  const [editDate, setEditDate] = useState("");
   const [savingId, setSavingId] = useState<string | null>(null);
   const [togglingJiraId, setTogglingJiraId] = useState<string | null>(null);
 
@@ -85,12 +103,14 @@ export default function LogList({
     setEditingId(log.id);
     setEditTaskName(log.taskName);
     setEditDuration(formatDurationEditable(log.duration));
+    setEditDate(toDateInputValue(log.startTime));
   };
 
   const cancelEditing = () => {
     setEditingId(null);
     setEditTaskName("");
     setEditDuration("");
+    setEditDate("");
   };
 
   const saveEdit = async (log: TimeLog) => {
@@ -100,17 +120,21 @@ export default function LogList({
     const trimmedName = editTaskName.trim();
     if (!trimmedName) return;
 
-    setSavingId(log.id);
+    const newStartTime = combineDateWithTime(editDate, log.startTime);
+    if (!newStartTime) return;
 
     const newEndTime = new Date(
-      new Date(log.startTime).getTime() + newDuration * 1000
+      new Date(newStartTime).getTime() + newDuration * 1000
     ).toISOString();
+
+    setSavingId(log.id);
 
     const updatedLog: TimeLog = {
       ...log,
       taskName: trimmedName,
-      duration: newDuration,
+      startTime: newStartTime,
       endTime: newEndTime,
+      duration: newDuration,
     };
 
     await onUpdateLog(updatedLog);
@@ -118,6 +142,7 @@ export default function LogList({
     setEditingId(null);
     setEditTaskName("");
     setEditDuration("");
+    setEditDate("");
   };
 
   const handleToggleJira = async (log: TimeLog) => {
@@ -200,18 +225,35 @@ export default function LogList({
                         <div className="w-2 h-2 rounded-full bg-[var(--accent)] flex-shrink-0 opacity-70" />
                         <div className="flex-1 min-w-0">
                           {isEditing ? (
-                            <input
-                              type="text"
-                              value={editTaskName}
-                              onChange={(e) => setEditTaskName(e.target.value)}
-                              className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] rounded-lg px-2 py-1.5 text-[0.8125rem] text-[var(--foreground)] outline-none transition-[border-color,box-shadow] duration-150 font-[inherit] placeholder:text-zinc-600 focus:border-[var(--accent)] focus:shadow-[0_0_0_2px_rgba(99,102,241,0.1)]"
-                              placeholder="Nombre de tarea"
-                              autoFocus
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") saveEdit(log);
-                                if (e.key === "Escape") cancelEditing();
-                              }}
-                            />
+                            <div className="flex flex-col gap-2">
+                              <input
+                                type="text"
+                                value={editTaskName}
+                                onChange={(e) => setEditTaskName(e.target.value)}
+                                className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] rounded-lg px-2 py-1.5 text-[0.8125rem] text-[var(--foreground)] outline-none transition-[border-color,box-shadow] duration-150 font-[inherit] placeholder:text-zinc-600 focus:border-[var(--accent)] focus:shadow-[0_0_0_2px_rgba(99,102,241,0.1)]"
+                                placeholder="Nombre de tarea"
+                                autoFocus
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") saveEdit(log);
+                                  if (e.key === "Escape") cancelEditing();
+                                }}
+                              />
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="date"
+                                  value={editDate}
+                                  onChange={(e) => setEditDate(e.target.value)}
+                                  className="flex-1 min-w-0 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-lg px-2 py-1 text-[0.75rem] text-[var(--foreground)] outline-none transition-[border-color,box-shadow] duration-150 font-[inherit] focus:border-[var(--accent)] focus:shadow-[0_0_0_2px_rgba(99,102,241,0.1)] [color-scheme:dark]"
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") saveEdit(log);
+                                    if (e.key === "Escape") cancelEditing();
+                                  }}
+                                />
+                                <span className="text-neutral-600 text-[0.75rem]">
+                                  {formatTimeOfDay(log.startTime)} → {formatTimeOfDay(log.endTime)}
+                                </span>
+                              </div>
+                            </div>
                           ) : (
                             <>
                               <p className="text-sm font-medium text-neutral-200 truncate">

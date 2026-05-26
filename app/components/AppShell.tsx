@@ -10,7 +10,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className={hideSidebar ? "" : "app-layout"}>
       {!hideSidebar && <Sidebar />}
-      <main className={hideSidebar ? "w-full" : "app-main"}>{children}</main>
+      <main className={hideSidebar ? "w-full" : "app-main ml-60"}>{children}</main>
     </div>
   );
 }

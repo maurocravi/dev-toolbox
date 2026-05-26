@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import type { TimeLog } from "../types";
+import { generateUUID } from "../types";
 
 interface TimerInputProps {
   onLogCreated: (log: TimeLog) => Promise<void>;
@@ -33,7 +34,7 @@ export default function TimerInput({ onLogCreated }: TimerInputProps) {
     );
 
     const log: TimeLog = {
-      id: crypto.randomUUID(),
+      id: generateUUID(),
       taskName: taskName.trim() || "Tarea sin nombre",
       startTime: startTimeRef.current.toISOString(),
       endTime: endTime.toISOString(),
