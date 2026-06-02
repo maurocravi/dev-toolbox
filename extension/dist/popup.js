@@ -20065,8 +20065,9 @@ ${suffix}`;
     btnEditCancel: document.getElementById("btn-edit-cancel"),
     btnEditSave: document.getElementById("btn-edit-save"),
     editTask: document.getElementById("edit-task"),
-    editStart: document.getElementById("edit-start"),
-    editEnd: document.getElementById("edit-end"),
+    editDate: document.getElementById("edit-date"),
+    editDuration: document.getElementById("edit-duration"),
+    editTimeRange: document.getElementById("edit-time-range"),
     editError: document.getElementById("edit-error"),
     editSpinner: document.getElementById("edit-spinner")
   };
@@ -20317,8 +20318,9 @@ ${suffix}`;
     if (!log) return;
     editingLogId = id;
     els.editTask.value = log.taskName;
-    els.editStart.value = toDatetimeLocal(log.startTime);
-    els.editEnd.value = toDatetimeLocal(log.endTime);
+    els.editDate.value = toDateInputValue(log.startTime);
+    els.editDuration.value = formatDurationEditable(log.duration);
+    els.editTimeRange.textContent = `${formatTimeOfDay(log.startTime)} \u2192 ${formatTimeOfDay(log.endTime)}`;
     els.editError.classList.add("hidden");
     els.editModal.classList.remove("hidden");
   }
@@ -20332,31 +20334,39 @@ ${suffix}`;
   els.btnEditSave.addEventListener("click", async () => {
     if (!editingLogId) return;
     const taskName = els.editTask.value.trim();
-    const startStr = els.editStart.value;
-    const endStr = els.editEnd.value;
-    if (!taskName || !startStr || !endStr) {
+    const dateValue = els.editDate.value;
+    const durationInput = els.editDuration.value;
+    if (!taskName || !dateValue || !durationInput) {
       showEditError("Complet\xE1 todos los campos.");
       return;
     }
-    const start = new Date(startStr);
-    const end = new Date(endStr);
-    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-      showEditError("Fechas inv\xE1lidas.");
+    const newDuration = parseDurationInput(durationInput);
+    if (newDuration === null || newDuration <= 0) {
+      showEditError("Duraci\xF3n inv\xE1lida. Us\xE1 el formato HH:MM:SS.");
       return;
     }
-    const duration = Math.floor((end.getTime() - start.getTime()) / 1e3);
-    if (duration < 0) {
-      showEditError("La fecha de fin debe ser posterior a la de inicio.");
+    const logs = await fetchRecentLogs(15);
+    const log = logs.find((l) => l.id === editingLogId);
+    if (!log) {
+      showEditError("No se encontr\xF3 el registro.");
       return;
     }
+    const newStartTime = combineDateWithTime(dateValue, log.startTime);
+    if (!newStartTime) {
+      showEditError("Fecha inv\xE1lida.");
+      return;
+    }
+    const newEndTime = new Date(
+      new Date(newStartTime).getTime() + newDuration * 1e3
+    ).toISOString();
     els.btnEditSave.disabled = true;
     els.editSpinner.classList.remove("hidden");
     try {
       await updateLog(editingLogId, {
         taskName,
-        startTime: start.toISOString(),
-        endTime: end.toISOString(),
-        duration
+        startTime: newStartTime,
+        endTime: newEndTime,
+        duration: newDuration
       });
       closeEditModal();
       await loadLogs();
@@ -20376,10 +20386,35 @@ ${suffix}`;
     div.textContent = str;
     return div.innerHTML;
   }
-  function toDatetimeLocal(isoString) {
+  function toDateInputValue(isoString) {
     const d = new Date(isoString);
     const pad = (n) => String(n).padStart(2, "0");
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  }
+  function formatTimeOfDay(isoString) {
+    const d = new Date(isoString);
+    return d.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" });
+  }
+  function formatDurationEditable(totalSeconds) {
+    const h = Math.floor(totalSeconds / 3600);
+    const m = Math.floor(totalSeconds % 3600 / 60);
+    const s = totalSeconds % 60;
+    return [h, m, s].map((v) => String(v).padStart(2, "0")).join(":");
+  }
+  function parseDurationInput(input) {
+    const parts = input.split(":").map(Number);
+    if (parts.length !== 3 || parts.some(isNaN)) return null;
+    const [h, m, s] = parts;
+    if (h < 0 || m < 0 || m > 59 || s < 0 || s > 59) return null;
+    return h * 3600 + m * 60 + s;
+  }
+  function combineDateWithTime(newDateValue, originalIso) {
+    if (!newDateValue) return null;
+    const original = new Date(originalIso);
+    const [year, month, day] = newDateValue.split("-").map(Number);
+    const combined = new Date(year, month - 1, day, original.getHours(), original.getMinutes(), original.getSeconds(), original.getMilliseconds());
+    if (isNaN(combined.getTime())) return null;
+    return combined.toISOString();
   }
   init();
 })();
