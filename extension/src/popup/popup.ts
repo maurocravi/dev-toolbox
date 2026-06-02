@@ -21,6 +21,7 @@ const els = {
   // Header
   headerActions: document.getElementById("header-actions")!,
   headerUser: document.getElementById("header-user")!,
+  btnOpenWeb: document.getElementById("btn-open-web")!,
   btnLogout: document.getElementById("btn-logout")!,
 
   // Login
@@ -140,6 +141,11 @@ function showLoginError(msg: string) {
   els.loginError.textContent = msg;
   els.loginError.classList.remove("hidden");
 }
+
+// ═══ Open Web ═══
+els.btnOpenWeb.addEventListener("click", () => {
+  chrome.tabs.create({ url: "https://qa-toolbox.vercel.app/" });
+});
 
 // ═══ Logout ═══
 els.btnLogout.addEventListener("click", async () => {
@@ -274,7 +280,7 @@ function resetTimerUI() {
 // ═══ Logs ═══
 async function loadLogs() {
   try {
-    const logs = await fetchRecentLogs(15);
+    const logs = await fetchRecentLogs();
     renderLogs(logs);
   } catch (err: unknown) {
     console.error("Error loading logs:", err);

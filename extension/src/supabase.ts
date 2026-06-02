@@ -128,13 +128,12 @@ export async function finishLog(logId: string, startTimeIso: string): Promise<Ti
   };
 }
 
-export async function fetchRecentLogs(limit = 15): Promise<TimeLog[]> {
+export async function fetchRecentLogs(): Promise<TimeLog[]> {
   const supabase = getSupabase();
   const { data, error } = await supabase
     .from("logs")
     .select("*")
-    .order("start_time", { ascending: false })
-    .limit(limit);
+    .order("start_time", { ascending: false });
 
   if (error) throw error;
   return (data ?? []).map((row: Record<string, unknown>) => ({

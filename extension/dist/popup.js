@@ -19995,9 +19995,9 @@ ${suffix}`;
       duration
     };
   }
-  async function fetchRecentLogs(limit = 15) {
+  async function fetchRecentLogs() {
     const supabase = getSupabase();
-    const { data, error } = await supabase.from("logs").select("*").order("start_time", { ascending: false }).limit(limit);
+    const { data, error } = await supabase.from("logs").select("*").order("start_time", { ascending: false });
     if (error) throw error;
     return (data ?? []).map((row) => ({
       id: row.id,
@@ -20029,6 +20029,7 @@ ${suffix}`;
     // Header
     headerActions: document.getElementById("header-actions"),
     headerUser: document.getElementById("header-user"),
+    btnOpenWeb: document.getElementById("btn-open-web"),
     btnLogout: document.getElementById("btn-logout"),
     // Login
     loginEmail: document.getElementById("login-email"),
@@ -20128,6 +20129,9 @@ ${suffix}`;
     els.loginError.textContent = msg;
     els.loginError.classList.remove("hidden");
   }
+  els.btnOpenWeb.addEventListener("click", () => {
+    chrome.tabs.create({ url: "https://qa-toolbox.vercel.app/" });
+  });
   els.btnLogout.addEventListener("click", async () => {
     await signOut();
     await storage.clearTimer();
@@ -20236,7 +20240,7 @@ ${suffix}`;
   }
   async function loadLogs() {
     try {
-      const logs = await fetchRecentLogs(15);
+      const logs = await fetchRecentLogs();
       renderLogs(logs);
     } catch (err) {
       console.error("Error loading logs:", err);
