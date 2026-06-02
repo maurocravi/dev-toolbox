@@ -20020,16 +20020,6 @@ ${suffix}`;
     const s = totalSeconds % 60;
     return [h, m, s].map((v) => String(v).padStart(2, "0")).join(":");
   }
-  function formatDate(isoString) {
-    const d = new Date(isoString);
-    return d.toLocaleDateString("es-AR", {
-      weekday: "short",
-      day: "numeric",
-      month: "short",
-      hour: "2-digit",
-      minute: "2-digit"
-    });
-  }
 
   // extension/src/popup/popup.ts
   var els = {
@@ -20256,6 +20246,38 @@ ${suffix}`;
     }
   }
   els.btnRefresh.addEventListener("click", loadLogs);
+  function toDayKey(isoString) {
+    const d = new Date(isoString);
+    const pad = (n) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  }
+  function groupLogsByDay(logs) {
+    const map = /* @__PURE__ */ new Map();
+    for (const log of logs) {
+      const key = toDayKey(log.startTime);
+      if (!map.has(key)) map.set(key, []);
+      map.get(key).push(log);
+    }
+    return map;
+  }
+  function getTotalDuration(logs) {
+    return logs.reduce((acc, log) => acc + log.duration, 0);
+  }
+  function getDayLabel(dayKey) {
+    const today = /* @__PURE__ */ new Date();
+    today.setHours(0, 0, 0, 0);
+    const dayDate = new Date(dayKey);
+    dayDate.setHours(0, 0, 0, 0);
+    const diffMs = dayDate.getTime() - today.getTime();
+    const diffDays = Math.round(diffMs / (1e3 * 60 * 60 * 24));
+    if (diffDays === 0) return "Hoy";
+    if (diffDays === -1) return "Ayer";
+    return dayDate.toLocaleDateString("es-AR", {
+      weekday: "long",
+      day: "numeric",
+      month: "long"
+    });
+  }
   function renderLogs(logs) {
     const displayLogs = isRunning && currentLogId ? logs.filter((l) => l.id !== currentLogId) : logs;
     if (displayLogs.length === 0) {
@@ -20265,31 +20287,47 @@ ${suffix}`;
     }
     els.logsEmpty.classList.add("hidden");
     els.logsList.innerHTML = "";
-    for (const log of displayLogs) {
-      const item = document.createElement("div");
-      item.className = "log-item";
-      item.innerHTML = `
-      <div class="log-info">
-        <div class="log-name">${escapeHtml(log.taskName)}</div>
-        <div class="log-meta">${formatDate(log.startTime)}</div>
+    const grouped = groupLogsByDay(displayLogs);
+    const dayKeys = Array.from(grouped.keys()).sort((a, b) => b.localeCompare(a));
+    for (const dayKey of dayKeys) {
+      const dayLogs = grouped.get(dayKey);
+      const totalDuration = getTotalDuration(dayLogs);
+      const header = document.createElement("div");
+      header.className = "log-day-header";
+      header.innerHTML = `
+      <div class="log-day-title">
+        <span class="log-day-label">${getDayLabel(dayKey)}</span>
+        <span class="log-day-count">${dayLogs.length}</span>
       </div>
-      <div class="log-duration">${formatDuration(log.duration)}</div>
-      <div class="log-actions">
-        <button class="btn-icon btn-icon-sm btn-edit" data-id="${log.id}" title="Editar" aria-label="Editar">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-          </svg>
-        </button>
-        <button class="btn-icon btn-icon-sm btn-delete" data-id="${log.id}" title="Eliminar" aria-label="Eliminar">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="3 6 5 6 21 6" />
-            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-          </svg>
-        </button>
-      </div>
+      <span class="log-day-total">Total: ${formatDuration(totalDuration)}</span>
     `;
-      els.logsList.appendChild(item);
+      els.logsList.appendChild(header);
+      for (const log of dayLogs) {
+        const item = document.createElement("div");
+        item.className = "log-item";
+        item.innerHTML = `
+        <div class="log-info">
+          <div class="log-name">${escapeHtml(log.taskName)}</div>
+          <div class="log-meta">${formatTimeOfDay(log.startTime)} \u2192 ${formatTimeOfDay(log.endTime)}</div>
+        </div>
+        <div class="log-duration">${formatDuration(log.duration)}</div>
+        <div class="log-actions">
+          <button class="btn-icon btn-icon-sm btn-edit" data-id="${log.id}" title="Editar" aria-label="Editar">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+            </svg>
+          </button>
+          <button class="btn-icon btn-icon-sm btn-delete" data-id="${log.id}" title="Eliminar" aria-label="Eliminar">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="3 6 5 6 21 6" />
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+            </svg>
+          </button>
+        </div>
+      `;
+        els.logsList.appendChild(item);
+      }
     }
     els.logsList.querySelectorAll(".btn-edit").forEach((btn) => {
       btn.addEventListener("click", () => {
