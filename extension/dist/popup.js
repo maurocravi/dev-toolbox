@@ -20246,19 +20246,26 @@ ${suffix}`;
     }
   }
   els.btnRefresh.addEventListener("click", loadLogs);
-  function toDayKey(isoString) {
-    const d = new Date(isoString);
-    const pad = (n) => String(n).padStart(2, "0");
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  function getDayKey(date) {
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    return d.toISOString();
   }
-  function groupLogsByDay(logs) {
-    const map = /* @__PURE__ */ new Map();
-    for (const log of logs) {
-      const key = toDayKey(log.startTime);
-      if (!map.has(key)) map.set(key, []);
-      map.get(key).push(log);
+  function groupLogsByDay(allLogs) {
+    const groups = /* @__PURE__ */ new Map();
+    for (const log of allLogs) {
+      const dayKey = getDayKey(new Date(log.startTime));
+      if (!groups.has(dayKey)) {
+        groups.set(dayKey, []);
+      }
+      groups.get(dayKey).push(log);
     }
-    return map;
+    for (const [, logs] of groups) {
+      logs.sort(
+        (a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime()
+      );
+    }
+    return groups;
   }
   function getTotalDuration(logs) {
     return logs.reduce((acc, log) => acc + log.duration, 0);
@@ -20288,7 +20295,9 @@ ${suffix}`;
     els.logsEmpty.classList.add("hidden");
     els.logsList.innerHTML = "";
     const grouped = groupLogsByDay(displayLogs);
-    const dayKeys = Array.from(grouped.keys()).sort((a, b) => b.localeCompare(a));
+    const dayKeys = Array.from(grouped.keys()).sort(
+      (a, b) => new Date(b).getTime() - new Date(a).getTime()
+    );
     for (const dayKey of dayKeys) {
       const dayLogs = grouped.get(dayKey);
       const totalDuration = getTotalDuration(dayLogs);

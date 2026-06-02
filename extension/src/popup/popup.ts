@@ -286,20 +286,27 @@ async function loadLogs() {
 
 els.btnRefresh.addEventListener("click", loadLogs);
 
-function toDayKey(isoString: string): string {
-  const d = new Date(isoString);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+function getDayKey(date: Date): string {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  return d.toISOString();
 }
 
-function groupLogsByDay(logs: TimeLog[]): Map<string, TimeLog[]> {
-  const map = new Map<string, TimeLog[]>();
-  for (const log of logs) {
-    const key = toDayKey(log.startTime);
-    if (!map.has(key)) map.set(key, []);
-    map.get(key)!.push(log);
+function groupLogsByDay(allLogs: TimeLog[]): Map<string, TimeLog[]> {
+  const groups = new Map<string, TimeLog[]>();
+  for (const log of allLogs) {
+    const dayKey = getDayKey(new Date(log.startTime));
+    if (!groups.has(dayKey)) {
+      groups.set(dayKey, []);
+    }
+    groups.get(dayKey)!.push(log);
   }
-  return map;
+  for (const [, logs] of groups) {
+    logs.sort(
+      (a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime()
+    );
+  }
+  return groups;
 }
 
 function getTotalDuration(logs: TimeLog[]): number {
@@ -340,7 +347,9 @@ function renderLogs(logs: TimeLog[]) {
 
   const grouped = groupLogsByDay(displayLogs);
   // Sort day keys descending (most recent first)
-  const dayKeys = Array.from(grouped.keys()).sort((a, b) => b.localeCompare(a));
+  const dayKeys = Array.from(grouped.keys()).sort(
+    (a, b) => new Date(b).getTime() - new Date(a).getTime()
+  );
 
   for (const dayKey of dayKeys) {
     const dayLogs = grouped.get(dayKey)!;
