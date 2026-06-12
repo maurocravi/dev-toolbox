@@ -2,6 +2,16 @@
 
 import { useState } from "react";
 import type { TimeLog } from "../types";
+import {
+  formatDuration,
+  formatDurationEditable,
+  parseDurationInput,
+  formatTimeOfDay,
+  toDateInputValue,
+  combineDateWithTime,
+  getTotalDuration,
+  getDayLabel,
+} from "@/lib/time";
 
 interface LogListProps {
   visibleDays: string[];
@@ -11,76 +21,7 @@ interface LogListProps {
   onToggleJira: (logId: string, currentStatus: boolean) => Promise<void>;
   hasMore: boolean;
   onLoadMore: () => void;
-}
-
-function formatDuration(totalSeconds: number): string {
-  const h = Math.floor(totalSeconds / 3600);
-  const m = Math.floor((totalSeconds % 3600) / 60);
-  const s = totalSeconds % 60;
-  if (h > 0) return `${h}h ${m}m ${s}s`;
-  if (m > 0) return `${m}m ${s}s`;
-  return `${s}s`;
-}
-
-function formatDurationEditable(totalSeconds: number): string {
-  const h = Math.floor(totalSeconds / 3600);
-  const m = Math.floor((totalSeconds % 3600) / 60);
-  const s = totalSeconds % 60;
-  return [h, m, s].map((v) => String(v).padStart(2, "0")).join(":");
-}
-
-function parseDurationInput(input: string): number | null {
-  const parts = input.split(":").map(Number);
-  if (parts.length !== 3 || parts.some(isNaN)) return null;
-  const [h, m, s] = parts;
-  if (h < 0 || m < 0 || m > 59 || s < 0 || s > 59) return null;
-  return h * 3600 + m * 60 + s;
-}
-
-function formatTimeOfDay(isoString: string): string {
-  const date = new Date(isoString);
-  return date.toLocaleTimeString("es-AR", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
-// Extract YYYY-MM-DD from an ISO string for a date input
-function toDateInputValue(isoString: string): string {
-  const date = new Date(isoString);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-}
-
-// Combine a new date (YYYY-MM-DD) with the time from an original ISO string
-function combineDateWithTime(newDateValue: string, originalIso: string): string | null {
-  if (!newDateValue) return null;
-  const original = new Date(originalIso);
-  const [year, month, day] = newDateValue.split("-").map(Number);
-  const combined = new Date(year, month - 1, day, original.getHours(), original.getMinutes(), original.getSeconds(), original.getMilliseconds());
-  if (isNaN(combined.getTime())) return null;
-  return combined.toISOString();
-}
-
-function getTotalDuration(logs: TimeLog[]): number {
-  return logs.reduce((acc, log) => acc + log.duration, 0);
-}
-
-function getDayLabel(dayKey: string): string {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const dayDate = new Date(dayKey);
-  dayDate.setHours(0, 0, 0, 0);
-  const diffMs = dayDate.getTime() - today.getTime();
-  const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
-
-  if (diffDays === 0) return "Hoy";
-  if (diffDays === -1) return "Ayer";
-  return dayDate.toLocaleDateString("es-AR", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-  });
+  loadingMore?: boolean;
 }
 
 export default function LogList({
@@ -91,6 +32,7 @@ export default function LogList({
   onToggleJira,
   hasMore,
   onLoadMore,
+  loadingMore = false,
 }: LogListProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTaskName, setEditTaskName] = useState("");
@@ -420,9 +362,13 @@ export default function LogList({
         <div className="flex justify-center mt-6">
           <button
             onClick={onLoadMore}
-            className="px-5 py-2.5 text-sm font-medium text-neutral-300 bg-neutral-800 hover:bg-neutral-700 rounded-lg transition-colors border border-neutral-700"
+            disabled={loadingMore}
+            className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-neutral-300 bg-neutral-800 hover:bg-neutral-700 rounded-lg transition-colors border border-neutral-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Cargar más
+            {loadingMore && (
+              <div className="w-3.5 h-3.5 border-2 border-[rgba(99,102,241,0.2)] border-t-[var(--accent)] rounded-full animate-spin" />
+            )}
+            {loadingMore ? "Cargando..." : "Cargar más"}
           </button>
         </div>
       )}

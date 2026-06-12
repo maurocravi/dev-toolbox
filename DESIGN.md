@@ -236,21 +236,17 @@ font-family: var(--font-inter), system-ui, -apple-system, BlinkMacSystemFont,
 
 ### Header de Página
 
+> Implementado como componente reutilizable: `app/components/PageHeader.tsx`. No copies el markup; usá el componente.
+
 ```tsx
-<div className="flex items-center justify-between mb-8 pb-6 border-b border-[var(--card-border)]">
-  <div className="flex items-center gap-3">
-    <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-gradient-to-br from-[var(--accent)] to-[#8b5cf6] text-white">
-      {/* Icono */}
-    </div>
-    <div>
-      <h1 className="text-lg font-semibold text-neutral-100">Título</h1>
-      <p className="text-xs text-neutral-500">Subtítulo</p>
-    </div>
-  </div>
-  <div className="text-xs text-neutral-600 font-mono">
-    {/* Fecha */}
-  </div>
-</div>
+import PageHeader from "./components/PageHeader";
+
+<PageHeader
+  icon={<svg /* icono 20px, patrón Lucide */ />}
+  title="Título"
+  subtitle="Subtítulo"
+  right={/* opcional: fecha, botón de acción, etc. */}
+/>
 ```
 
 ### Card / Contenedor
@@ -279,11 +275,15 @@ font-family: var(--font-inter), system-ui, -apple-system, BlinkMacSystemFont,
 
 ### Banner de Error
 
+> Implementado como componente reutilizable: `app/components/ErrorBanner.tsx`. No copies el markup; usá el componente.
+
 ```tsx
-<div className="bg-[rgba(239,68,68,0.1)] border border-[rgba(239,68,68,0.2)] rounded-xl px-4 py-3 mb-4 text-[0.8125rem] text-[var(--danger-hover)]">
-  <span>{error}</span>
-</div>
+import ErrorBanner from "./components/ErrorBanner";
+
+{error && <ErrorBanner message={error} onDismiss={() => setError(null)} />}
 ```
+
+Para errores de mutaciones (insert/update/delete) usá el patrón `showError(mensaje)`: muestra el banner y lo limpia solo a los 6 segundos. Los errores de carga inicial se setean con `setError` directo y quedan persistentes.
 
 ### Input
 

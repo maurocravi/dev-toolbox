@@ -1,9 +1,11 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import ProjectModal, { ProjectFormData } from "../components/ProjectModal";
 import ProjectDetailsModal from "../components/ProjectDetailsModal";
 import ProjectCard from "../components/ProjectCard";
+import PageHeader from "../components/PageHeader";
+import ErrorBanner from "../components/ErrorBanner";
 import { dbToProject, projectToDb, type DbProject, type Project } from "../types";
 import { createClient } from "@/lib/supabase/client";
 
@@ -18,6 +20,20 @@ export default function ProyectosPage() {
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const errorTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Shows a transient error (for failed mutations); the initial-load error stays persistent
+  const showError = useCallback((message: string) => {
+    setError(message);
+    if (errorTimeoutRef.current) clearTimeout(errorTimeoutRef.current);
+    errorTimeoutRef.current = setTimeout(() => setError(null), 6000);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (errorTimeoutRef.current) clearTimeout(errorTimeoutRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     async function fetchProjects() {
@@ -91,6 +107,7 @@ export default function ProyectosPage() {
 
       if (updateError) {
         console.error("Error updating project:", updateError);
+        showError("No se pudieron guardar los cambios del proyecto.");
         const { data: refreshed } = await supabase
           .from("projects")
           .select("*")
@@ -133,6 +150,7 @@ export default function ProyectosPage() {
     if (insertError) {
       console.error("Error inserting project:", insertError);
       setProjects((prev) => prev.filter((p) => p.id !== tempId));
+      showError("No se pudo crear el proyecto. Probá de nuevo.");
       return;
     }
 
@@ -140,7 +158,7 @@ export default function ProyectosPage() {
     setProjects((prev) =>
       prev.map((p) => (p.id === tempId ? realProject : p))
     );
-  }, [editingProject, selectedProject]);
+  }, [editingProject, selectedProject, showError]);
 
   const handleDeleteProject = useCallback(async (id: string) => {
     setProjects((prev) => prev.filter((p) => p.id !== id));
@@ -153,13 +171,14 @@ export default function ProyectosPage() {
 
     if (deleteError) {
       console.error("Error deleting project:", deleteError);
+      showError("No se pudo eliminar el proyecto.");
       const { data } = await supabase
         .from("projects")
         .select("*")
         .order("created_at", { ascending: false });
       if (data) setProjects((data as DbProject[]).map(dbToProject));
     }
-  }, []);
+  }, [showError]);
 
   const handleViewProject = (id: string) => {
     const project = projects.find((p) => p.id === id);
@@ -184,6 +203,7 @@ export default function ProyectosPage() {
 
     if (updateError) {
       console.error("Error updating project:", updateError);
+      showError("No se pudieron guardar los cambios del proyecto.");
       const { data } = await supabase
         .from("projects")
         .select("*")
@@ -195,7 +215,7 @@ export default function ProyectosPage() {
         if (restoredSelected) setSelectedProject(restoredSelected);
       }
     }
-  }, []);
+  }, [showError]);
 
   return (
     <div className="min-h-screen flex justify-center py-8 px-4 bg-[var(--background)]"
@@ -204,37 +224,29 @@ export default function ProyectosPage() {
       }}
     >
       <div className="w-full max-w-[800px]">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8 pb-6 border-b border-[var(--card-border)]">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-gradient-to-br from-[var(--accent)] to-[#8b5cf6] text-white flex-shrink-0">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-              </svg>
-            </div>
-            <div>
-              <h1 className="text-lg font-semibold text-neutral-100">Proyectos</h1>
-              <p className="text-xs text-neutral-500">Organiza tus proyectos y tareas</p>
-            </div>
-          </div>
-          <button
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-[0.8125rem] font-semibold border-none bg-[var(--accent)] text-white cursor-pointer transition-all duration-200 font-[inherit] shadow-[0_2px_12px_rgba(99,102,241,0.3)] hover:bg-[var(--accent-hover)] hover:shadow-[0_4px_20px_rgba(99,102,241,0.4)] hover:-translate-y-px"
-            onClick={handleNewProject}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="12" y1="5" x2="12" y2="19" />
-              <line x1="5" y1="12" x2="19" y2="12" />
+        <PageHeader
+          icon={
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
             </svg>
-            Nuevo Proyecto
-          </button>
-        </div>
+          }
+          title="Proyectos"
+          subtitle="Organiza tus proyectos y tareas"
+          right={
+            <button
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-[0.8125rem] font-semibold border-none bg-[var(--accent)] text-white cursor-pointer transition-all duration-200 font-[inherit] shadow-[0_2px_12px_rgba(99,102,241,0.3)] hover:bg-[var(--accent-hover)] hover:shadow-[0_4px_20px_rgba(99,102,241,0.4)] hover:-translate-y-px"
+              onClick={handleNewProject}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+              Nuevo Proyecto
+            </button>
+          }
+        />
 
-        {/* Error banner */}
-        {error && (
-          <div className="bg-[rgba(239,68,68,0.1)] border border-[rgba(239,68,68,0.2)] rounded-xl px-4 py-3 mb-4 text-[0.8125rem] text-[var(--danger-hover)]">
-            <span>{error}</span>
-          </div>
-        )}
+        {error && <ErrorBanner message={error} onDismiss={() => setError(null)} />}
 
         {/* Loading state */}
         {loading ? (
