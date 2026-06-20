@@ -18,6 +18,7 @@ export default function ProyectosPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
+  const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const errorTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -217,6 +218,21 @@ export default function ProyectosPage() {
     }
   }, [showError]);
 
+  const normalizedQuery = query.trim().toLowerCase();
+  const filteredProjects = normalizedQuery
+    ? projects.filter((p) => {
+        const haystack = [
+          p.name,
+          p.description,
+          ...p.links.map((l) => l.label),
+          ...p.accounts.map((a) => a.name),
+        ]
+          .join(" ")
+          .toLowerCase();
+        return haystack.includes(normalizedQuery);
+      })
+    : projects;
+
   return (
     <div className="min-h-screen flex justify-center py-8 px-4 bg-[var(--background)]"
       style={{
@@ -265,17 +281,64 @@ export default function ProyectosPage() {
             <p className="text-xs text-neutral-600">Comienza creando tu primer proyecto para organizar tu trabajo.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4">
-            {projects.map((project) => (
-              <ProjectCard
-                key={project.id}
-                project={project}
-                onDelete={handleDeleteProject}
-                onView={handleViewProject}
-                onEdit={handleEditProject}
+          <>
+            {/* Search bar */}
+            <div className="relative mb-4">
+              <svg
+                className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-500 pointer-events-none"
+                width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+              >
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+              <input
+                className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl pl-10 pr-10 py-2.5 text-[0.8125rem] text-[var(--foreground)] outline-none transition-all duration-150 font-[inherit] placeholder:text-zinc-600 focus:border-[var(--accent)] focus:shadow-[0_0_0_2px_rgba(99,102,241,0.1)]"
+                type="text"
+                placeholder="Buscar proyectos..."
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                aria-label="Buscar proyectos"
               />
-            ))}
-          </div>
+              {query && (
+                <button
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center justify-center w-6 h-6 rounded-md bg-transparent border-none text-zinc-500 cursor-pointer transition-all duration-150 hover:bg-white/6 hover:text-[var(--foreground)]"
+                  onClick={() => setQuery("")}
+                  aria-label="Limpiar búsqueda"
+                  title="Limpiar búsqueda"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                </button>
+              )}
+            </div>
+
+            {filteredProjects.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <div className="flex items-center justify-center w-14 h-14 rounded-2xl bg-[var(--card-bg)] border border-[var(--card-border)] text-[#3a3a44] mb-4">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="11" cy="11" r="8" />
+                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                  </svg>
+                </div>
+                <h3 className="text-sm font-medium text-neutral-400 mb-1">Sin resultados</h3>
+                <p className="text-xs text-neutral-600">No hay proyectos que coincidan con &quot;{query}&quot;.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4">
+                {filteredProjects.map((project) => (
+                  <ProjectCard
+                    key={project.id}
+                    project={project}
+                    onDelete={handleDeleteProject}
+                    onView={handleViewProject}
+                    onEdit={handleEditProject}
+                  />
+                ))}
+              </div>
+            )}
+          </>
         )}
       </div>
 

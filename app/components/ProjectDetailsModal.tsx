@@ -228,7 +228,7 @@ export default function ProjectDetailsModal({
       onClick={handleClose}
     >
       <div
-        className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl w-full max-w-[720px] max-h-[85vh] overflow-y-auto custom-scrollbar p-6 animate-[slideUp_0.2s_ease]"
+        className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl w-full max-w-[1040px] max-h-[85vh] overflow-y-auto custom-scrollbar p-6 animate-[slideUp_0.2s_ease]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -252,8 +252,8 @@ export default function ProjectDetailsModal({
           </button>
         </div>
 
-        {/* Two column layout */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+        {/* Stacked sections */}
+        <div className="flex flex-col gap-8">
           {/* Links Column */}
           <div className="flex flex-col">
             <div className="flex items-center justify-between mb-3">
@@ -358,7 +358,7 @@ export default function ProjectDetailsModal({
             )}
 
             {/* Links list */}
-            <div className="flex flex-col gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
               {links.map((link, index) => {
                 const colors = LINK_COLOR_MAP[link.color] || LINK_COLOR_MAP.blue;
                 return (
@@ -416,7 +416,7 @@ export default function ProjectDetailsModal({
                 );
               })}
               {links.length === 0 && !showLinkForm && (
-                <p className="text-sm text-zinc-600 text-center py-6 m-0">No hay URLs aún.</p>
+                <p className="col-span-full text-sm text-zinc-600 text-center py-6 m-0">No hay URLs aún.</p>
               )}
             </div>
           </div>
@@ -540,7 +540,7 @@ export default function ProjectDetailsModal({
             )}
 
             {/* Accounts list */}
-            <div className="flex flex-col gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
               {accounts.map((account, index) => {
                 const colors = ACCOUNT_COLOR_MAP[account.color] || ACCOUNT_COLOR_MAP.blue;
                 return (
@@ -622,7 +622,7 @@ export default function ProjectDetailsModal({
                 );
               })}
               {accounts.length === 0 && !showAccountForm && (
-                <p className="text-sm text-zinc-600 text-center py-6 m-0">No hay usuarios aún.</p>
+                <p className="col-span-full text-sm text-zinc-600 text-center py-6 m-0">No hay usuarios aún.</p>
               )}
             </div>
           </div>
