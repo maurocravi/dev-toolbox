@@ -69,6 +69,15 @@ export interface ProjectAccount {
   color: "blue" | "red";
 }
 
+// A folder groups its own set of links and accounts inside a project (one level deep)
+export interface ProjectFolder {
+  id: string;
+  name: string;
+  color: string;
+  links: ProjectLink[];
+  accounts: ProjectAccount[];
+}
+
 export interface DbProject {
   id: string;
   created_at: string;
@@ -77,6 +86,7 @@ export interface DbProject {
   color: string;
   links: ProjectLink[];
   accounts: unknown[];
+  folders: unknown[];
   user_id: string | null;
 }
 
@@ -88,6 +98,18 @@ export interface Project {
   createdAt: string;
   links: ProjectLink[];
   accounts: ProjectAccount[];
+  folders: ProjectFolder[];
+}
+
+function normalizeFolder(raw: unknown): ProjectFolder {
+  const f = (raw ?? {}) as Partial<ProjectFolder>;
+  return {
+    id: typeof f.id === "string" ? f.id : generateUUID(),
+    name: typeof f.name === "string" ? f.name : "",
+    color: typeof f.color === "string" ? f.color : "#94a3b8",
+    links: Array.isArray(f.links) ? f.links : [],
+    accounts: Array.isArray(f.accounts) ? f.accounts : [],
+  };
 }
 
 export function dbToProject(row: DbProject): Project {
@@ -99,6 +121,7 @@ export function dbToProject(row: DbProject): Project {
     createdAt: row.created_at,
     links: Array.isArray(row.links) ? row.links : [],
     accounts: Array.isArray(row.accounts) ? (row.accounts as ProjectAccount[]) : [],
+    folders: Array.isArray(row.folders) ? row.folders.map(normalizeFolder) : [],
   };
 }
 
@@ -108,6 +131,7 @@ export function projectToDb(project: Project): {
   color: string;
   links: ProjectLink[];
   accounts: ProjectAccount[];
+  folders: ProjectFolder[];
   user_id: string | null;
 } {
   return {
@@ -116,6 +140,52 @@ export function projectToDb(project: Project): {
     color: project.color,
     links: project.links,
     accounts: project.accounts,
+    folders: project.folders,
+    user_id: null,
+  };
+}
+
+// ═══════════════════════════════════════════
+// Note types
+// ═══════════════════════════════════════════
+
+export interface DbNote {
+  id: string;
+  created_at: string;
+  title: string;
+  content: string;
+  color: string | null;
+  user_id: string | null;
+}
+
+export interface Note {
+  id: string;
+  title: string;
+  content: string;
+  color: string;
+  createdAt: string;
+}
+
+export function dbToNote(row: DbNote): Note {
+  return {
+    id: row.id,
+    title: row.title || "",
+    content: row.content || "",
+    color: row.color || "#94a3b8",
+    createdAt: row.created_at,
+  };
+}
+
+export function noteToDb(note: Note): {
+  title: string;
+  content: string;
+  color: string;
+  user_id: string | null;
+} {
+  return {
+    title: note.title,
+    content: note.content,
+    color: note.color,
     user_id: null,
   };
 }

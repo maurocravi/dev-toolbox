@@ -1,29 +1,28 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import ProjectModal, { ProjectFormData } from "../components/ProjectModal";
-import ProjectDetailsModal from "../components/ProjectDetailsModal";
-import ProjectCard from "../components/ProjectCard";
+import NoteModal, { NoteFormData } from "../components/NoteModal";
+import NoteDetailsModal from "../components/NoteDetailsModal";
+import NoteCard from "../components/NoteCard";
 import PageHeader from "../components/PageHeader";
 import ErrorBanner from "../components/ErrorBanner";
-import { dbToProject, projectToDb, type DbProject, type Project } from "../types";
+import { dbToNote, noteToDb, type DbNote, type Note } from "../types";
 import { createClient } from "@/lib/supabase/client";
 
 function generateId(): string {
   return `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 }
 
-export default function ProyectosPage() {
-  const [projects, setProjects] = useState<Project[]>([]);
+export default function NotasPage() {
+  const [notes, setNotes] = useState<Note[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
-  const [editingProject, setEditingProject] = useState<Project | null>(null);
+  const [selectedNote, setSelectedNote] = useState<Note | null>(null);
+  const [editingNote, setEditingNote] = useState<Note | null>(null);
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const errorTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Shows a transient error (for failed mutations); the initial-load error stays persistent
   const showError = useCallback((message: string) => {
     setError(message);
     if (errorTimeoutRef.current) clearTimeout(errorTimeoutRef.current);
@@ -37,83 +36,88 @@ export default function ProyectosPage() {
   }, []);
 
   useEffect(() => {
-    async function fetchProjects() {
+    async function fetchNotes() {
       try {
         setLoading(true);
         setError(null);
         const supabase = createClient();
         const { data, error: fetchError } = await supabase
-          .from("projects")
+          .from("notes")
           .select("*")
           .order("created_at", { ascending: false });
 
         if (fetchError) {
-          console.error("Error fetching projects:", fetchError);
-          setError("Error al cargar los proyectos.");
+          console.error("Error fetching notes:", fetchError);
+          setError("Error al cargar las notas.");
           setLoading(false);
           return;
         }
 
-        const projectsList = (data as DbProject[]).map(dbToProject);
-        setProjects(projectsList);
+        setNotes((data as DbNote[]).map(dbToNote));
         setLoading(false);
       } catch (err) {
-        console.error("Unexpected error fetching projects:", err);
+        console.error("Unexpected error fetching notes:", err);
         setError("Error al conectar con el servidor.");
         setLoading(false);
       }
     }
 
-    fetchProjects();
+    fetchNotes();
   }, []);
 
-  const handleNewProject = () => {
-    setEditingProject(null);
+  const handleNewNote = () => {
+    setEditingNote(null);
     setIsModalOpen(true);
   };
 
-  const handleEditProject = (id: string) => {
-    const project = projects.find((p) => p.id === id);
-    if (project) {
-      setEditingProject(project);
+  const handleEditNote = (id: string) => {
+    const note = notes.find((n) => n.id === id);
+    if (note) {
+      setSelectedNote(null);
+      setEditingNote(note);
       setIsModalOpen(true);
     }
   };
 
-  const handleSaveProject = useCallback(async (data: ProjectFormData) => {
+  const handleViewNote = (id: string) => {
+    const note = notes.find((n) => n.id === id);
+    if (note) setSelectedNote(note);
+  };
+
+  const handleSaveNote = useCallback(async (data: NoteFormData) => {
     const supabase = createClient();
 
-    if (editingProject) {
-      const updated: Project = {
-        ...editingProject,
-        name: data.name,
+    if (editingNote) {
+      const updated: Note = {
+        ...editingNote,
+        title: data.title,
         color: data.color,
-        description: data.description,
+        content: data.content,
       };
 
-      setProjects((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
-      if (selectedProject?.id === updated.id) {
-        setSelectedProject(updated);
+      setNotes((prev) => prev.map((n) => (n.id === updated.id ? updated : n)));
+      if (selectedNote?.id === updated.id) {
+        setSelectedNote(updated);
       }
-      setEditingProject(null);
+      setEditingNote(null);
 
       const { error: updateError } = await supabase
-        .from("projects")
+        .from("notes")
         .update({
-          name: updated.name,
+          title: updated.title,
           color: updated.color,
-          description: updated.description,
+          content: updated.content,
         })
         .eq("id", updated.id);
 
       if (updateError) {
-        console.error("Error updating project:", updateError);
-        showError("No se pudieron guardar los cambios del proyecto.");
+        console.error("Error updating note:", updateError);
+        showError("No se pudieron guardar los cambios de la nota.");
         const { data: refreshed } = await supabase
-          .from("projects")
+          .from("notes")
           .select("*")
           .order("created_at", { ascending: false });
-        if (refreshed) setProjects((refreshed as DbProject[]).map(dbToProject));
+        if (refreshed) setNotes((refreshed as DbNote[]).map(dbToNote));
       }
       return;
     }
@@ -125,116 +129,66 @@ export default function ProyectosPage() {
     const tempId = generateId();
     const now = new Date().toISOString();
 
-    const tempProject: Project = {
+    const tempNote: Note = {
       id: tempId,
-      name: data.name,
+      title: data.title,
       color: data.color,
-      description: data.description,
+      content: data.content,
       createdAt: now,
-      links: [],
-      accounts: [],
-      folders: [],
     };
 
-    setProjects((prev) => [tempProject, ...prev]);
+    setNotes((prev) => [tempNote, ...prev]);
 
     const dbPayload = {
-      ...projectToDb(tempProject),
+      ...noteToDb(tempNote),
       user_id: user?.id ?? null,
     };
 
     const { data: inserted, error: insertError } = await supabase
-      .from("projects")
+      .from("notes")
       .insert(dbPayload)
       .select()
       .single();
 
     if (insertError) {
-      console.error("Error inserting project:", insertError);
-      setProjects((prev) => prev.filter((p) => p.id !== tempId));
-      showError("No se pudo crear el proyecto. Probá de nuevo.");
+      console.error("Error inserting note:", insertError);
+      setNotes((prev) => prev.filter((n) => n.id !== tempId));
+      showError("No se pudo crear la nota. Probá de nuevo.");
       return;
     }
 
-    const realProject = dbToProject(inserted as DbProject);
-    setProjects((prev) =>
-      prev.map((p) => (p.id === tempId ? realProject : p))
-    );
-  }, [editingProject, selectedProject, showError]);
+    const realNote = dbToNote(inserted as DbNote);
+    setNotes((prev) => prev.map((n) => (n.id === tempId ? realNote : n)));
+  }, [editingNote, selectedNote, showError]);
 
-  const handleDeleteProject = useCallback(async (id: string) => {
-    setProjects((prev) => prev.filter((p) => p.id !== id));
+  const handleDeleteNote = useCallback(async (id: string) => {
+    setNotes((prev) => prev.filter((n) => n.id !== id));
+    if (selectedNote?.id === id) setSelectedNote(null);
 
     const supabase = createClient();
     const { error: deleteError } = await supabase
-      .from("projects")
+      .from("notes")
       .delete()
       .eq("id", id);
 
     if (deleteError) {
-      console.error("Error deleting project:", deleteError);
-      showError("No se pudo eliminar el proyecto.");
+      console.error("Error deleting note:", deleteError);
+      showError("No se pudo eliminar la nota.");
       const { data } = await supabase
-        .from("projects")
+        .from("notes")
         .select("*")
         .order("created_at", { ascending: false });
-      if (data) setProjects((data as DbProject[]).map(dbToProject));
+      if (data) setNotes((data as DbNote[]).map(dbToNote));
     }
-  }, [showError]);
-
-  const handleViewProject = (id: string) => {
-    const project = projects.find((p) => p.id === id);
-    if (project) setSelectedProject(project);
-  };
-
-  const handleUpdateProject = useCallback(async (updated: Project) => {
-    setProjects((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
-    setSelectedProject(updated);
-
-    const supabase = createClient();
-    const { error: updateError } = await supabase
-      .from("projects")
-      .update({
-        name: updated.name,
-        color: updated.color,
-        description: updated.description,
-        links: updated.links,
-        accounts: updated.accounts,
-        folders: updated.folders,
-      })
-      .eq("id", updated.id);
-
-    if (updateError) {
-      console.error("Error updating project:", updateError);
-      showError("No se pudieron guardar los cambios del proyecto.");
-      const { data } = await supabase
-        .from("projects")
-        .select("*")
-        .order("created_at", { ascending: false });
-      if (data) {
-        const restored = (data as DbProject[]).map(dbToProject);
-        setProjects(restored);
-        const restoredSelected = restored.find((p) => p.id === updated.id);
-        if (restoredSelected) setSelectedProject(restoredSelected);
-      }
-    }
-  }, [showError]);
+  }, [selectedNote, showError]);
 
   const normalizedQuery = query.trim().toLowerCase();
-  const filteredProjects = normalizedQuery
-    ? projects.filter((p) => {
-        const haystack = [
-          p.name,
-          p.description,
-          ...p.links.map((l) => l.label),
-          ...p.accounts.map((a) => a.name),
-          ...p.folders.map((f) => f.name),
-        ]
-          .join(" ")
-          .toLowerCase();
+  const filteredNotes = normalizedQuery
+    ? notes.filter((n) => {
+        const haystack = [n.title, n.content].join(" ").toLowerCase();
         return haystack.includes(normalizedQuery);
       })
-    : projects;
+    : notes;
 
   return (
     <div className="min-h-screen flex justify-center py-8 px-4 bg-[var(--background)]"
@@ -246,21 +200,25 @@ export default function ProyectosPage() {
         <PageHeader
           icon={
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="16" y1="13" x2="8" y2="13" />
+              <line x1="16" y1="17" x2="8" y2="17" />
+              <line x1="10" y1="9" x2="8" y2="9" />
             </svg>
           }
-          title="Proyectos"
-          subtitle="Organiza tus proyectos y tareas"
+          title="Notas"
+          subtitle="Guarda y organiza tus notas"
           right={
             <button
               className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-[0.8125rem] font-semibold border-none bg-[var(--accent)] text-white cursor-pointer transition-all duration-200 font-[inherit] shadow-[0_2px_12px_rgba(99,102,241,0.3)] hover:bg-[var(--accent-hover)] hover:shadow-[0_4px_20px_rgba(99,102,241,0.4)] hover:-translate-y-px"
-              onClick={handleNewProject}
+              onClick={handleNewNote}
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="12" y1="5" x2="12" y2="19" />
                 <line x1="5" y1="12" x2="19" y2="12" />
               </svg>
-              Nuevo Proyecto
+              Nueva Nota
             </button>
           }
         />
@@ -271,17 +229,21 @@ export default function ProyectosPage() {
         {loading ? (
           <div className="flex flex-col items-center justify-center py-16">
             <div className="w-7 h-7 border-[3px] border-[rgba(99,102,241,0.2)] border-t-[var(--accent)] rounded-full animate-spin" />
-            <p className="text-sm text-neutral-500 mt-3">Cargando proyectos...</p>
+            <p className="text-sm text-neutral-500 mt-3">Cargando notas...</p>
           </div>
-        ) : projects.length === 0 ? (
+        ) : notes.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-center">
             <div className="flex items-center justify-center w-14 h-14 rounded-2xl bg-[var(--card-bg)] border border-[var(--card-border)] text-[#3a3a44] mb-4">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+                <line x1="16" y1="13" x2="8" y2="13" />
+                <line x1="16" y1="17" x2="8" y2="17" />
+                <line x1="10" y1="9" x2="8" y2="9" />
               </svg>
             </div>
-            <h3 className="text-sm font-medium text-neutral-400 mb-1">No hay proyectos aún</h3>
-            <p className="text-xs text-neutral-600">Comienza creando tu primer proyecto para organizar tu trabajo.</p>
+            <h3 className="text-sm font-medium text-neutral-400 mb-1">No hay notas aún</h3>
+            <p className="text-xs text-neutral-600">Comienza creando tu primera nota.</p>
           </div>
         ) : (
           <>
@@ -297,10 +259,10 @@ export default function ProyectosPage() {
               <input
                 className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl pl-10 pr-10 py-2.5 text-[0.8125rem] text-[var(--foreground)] outline-none transition-all duration-150 font-[inherit] placeholder:text-zinc-600 focus:border-[var(--accent)] focus:shadow-[0_0_0_2px_rgba(99,102,241,0.1)]"
                 type="text"
-                placeholder="Buscar proyectos..."
+                placeholder="Buscar notas..."
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                aria-label="Buscar proyectos"
+                aria-label="Buscar notas"
               />
               {query && (
                 <button
@@ -317,7 +279,7 @@ export default function ProyectosPage() {
               )}
             </div>
 
-            {filteredProjects.length === 0 ? (
+            {filteredNotes.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-center">
                 <div className="flex items-center justify-center w-14 h-14 rounded-2xl bg-[var(--card-bg)] border border-[var(--card-border)] text-[#3a3a44] mb-4">
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -326,17 +288,17 @@ export default function ProyectosPage() {
                   </svg>
                 </div>
                 <h3 className="text-sm font-medium text-neutral-400 mb-1">Sin resultados</h3>
-                <p className="text-xs text-neutral-600">No hay proyectos que coincidan con &quot;{query}&quot;.</p>
+                <p className="text-xs text-neutral-600">No hay notas que coincidan con &quot;{query}&quot;.</p>
               </div>
             ) : (
               <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4">
-                {filteredProjects.map((project) => (
-                  <ProjectCard
-                    key={project.id}
-                    project={project}
-                    onDelete={handleDeleteProject}
-                    onView={handleViewProject}
-                    onEdit={handleEditProject}
+                {filteredNotes.map((note) => (
+                  <NoteCard
+                    key={note.id}
+                    note={note}
+                    onDelete={handleDeleteNote}
+                    onView={handleViewNote}
+                    onEdit={handleEditNote}
                   />
                 ))}
               </div>
@@ -345,21 +307,21 @@ export default function ProyectosPage() {
         )}
       </div>
 
-      <ProjectModal
+      <NoteModal
         isOpen={isModalOpen}
         onClose={() => {
           setIsModalOpen(false);
-          setEditingProject(null);
+          setEditingNote(null);
         }}
-        onSave={handleSaveProject}
-        project={editingProject}
+        onSave={handleSaveNote}
+        note={editingNote}
       />
 
-      {selectedProject && (
-        <ProjectDetailsModal
-          project={selectedProject}
-          onClose={() => setSelectedProject(null)}
-          onUpdate={handleUpdateProject}
+      {selectedNote && (
+        <NoteDetailsModal
+          note={selectedNote}
+          onClose={() => setSelectedNote(null)}
+          onEdit={handleEditNote}
         />
       )}
     </div>
