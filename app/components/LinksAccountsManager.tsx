@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { ProjectLink, ProjectAccount } from "../types";
+import { useConfirm } from "./ConfirmDialog";
 
 const LINK_COLORS = ["blue", "red"] as const;
 const ACCOUNT_COLORS = ["blue", "red"] as const;
@@ -29,6 +30,7 @@ export default function LinksAccountsManager({
   onChange,
   saving = false,
 }: LinksAccountsManagerProps) {
+  const confirm = useConfirm();
   const [showLinkForm, setShowLinkForm] = useState(false);
   const [formLinkLabel, setFormLinkLabel] = useState("");
   const [formUrl, setFormUrl] = useState("");
@@ -84,7 +86,14 @@ export default function LinksAccountsManager({
     setEditingLinkIndex(null);
   };
 
-  const handleDeleteLink = (index: number) => {
+  const handleDeleteLink = async (index: number) => {
+    const link = links[index];
+    const ok = await confirm({
+      title: "Eliminar link",
+      message: `¿Seguro que querés eliminar el link${link ? ` "${link.label}"` : ""}? Esta acción no se puede deshacer.`,
+      variant: "danger",
+    });
+    if (!ok) return;
     onChange(
       links.filter((_, i) => i !== index),
       accounts
@@ -144,7 +153,14 @@ export default function LinksAccountsManager({
     setRevealedPass(new Set());
   };
 
-  const handleDeleteAccount = (index: number) => {
+  const handleDeleteAccount = async (index: number) => {
+    const account = accounts[index];
+    const ok = await confirm({
+      title: "Eliminar cuenta",
+      message: `¿Seguro que querés eliminar la cuenta${account ? ` "${account.name}"` : ""}? Esta acción no se puede deshacer.`,
+      variant: "danger",
+    });
+    if (!ok) return;
     onChange(
       links,
       accounts.filter((_, i) => i !== index)

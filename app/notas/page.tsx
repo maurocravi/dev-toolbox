@@ -6,6 +6,7 @@ import NoteDetailsModal from "../components/NoteDetailsModal";
 import NoteCard from "../components/NoteCard";
 import PageHeader from "../components/PageHeader";
 import ErrorBanner from "../components/ErrorBanner";
+import { useConfirm } from "../components/ConfirmDialog";
 import { dbToNote, noteToDb, type DbNote, type Note } from "../types";
 import { createClient } from "@/lib/supabase/client";
 
@@ -14,6 +15,7 @@ function generateId(): string {
 }
 
 export default function NotasPage() {
+  const confirm = useConfirm();
   const [notes, setNotes] = useState<Note[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
@@ -162,6 +164,13 @@ export default function NotasPage() {
   }, [editingNote, selectedNote, showError]);
 
   const handleDeleteNote = useCallback(async (id: string) => {
+    const ok = await confirm({
+      title: "Eliminar nota",
+      message: "¿Seguro que querés eliminar esta nota? Esta acción no se puede deshacer.",
+      variant: "danger",
+    });
+    if (!ok) return;
+
     setNotes((prev) => prev.filter((n) => n.id !== id));
     if (selectedNote?.id === id) setSelectedNote(null);
 
@@ -180,7 +189,7 @@ export default function NotasPage() {
         .order("created_at", { ascending: false });
       if (data) setNotes((data as DbNote[]).map(dbToNote));
     }
-  }, [selectedNote, showError]);
+  }, [selectedNote, showError, confirm]);
 
   const normalizedQuery = query.trim().toLowerCase();
   const filteredNotes = normalizedQuery

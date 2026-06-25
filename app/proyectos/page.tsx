@@ -6,6 +6,7 @@ import ProjectDetailsModal from "../components/ProjectDetailsModal";
 import ProjectCard from "../components/ProjectCard";
 import PageHeader from "../components/PageHeader";
 import ErrorBanner from "../components/ErrorBanner";
+import { useConfirm } from "../components/ConfirmDialog";
 import { dbToProject, projectToDb, type DbProject, type Project } from "../types";
 import { createClient } from "@/lib/supabase/client";
 
@@ -14,6 +15,7 @@ function generateId(): string {
 }
 
 export default function ProyectosPage() {
+  const confirm = useConfirm();
   const [projects, setProjects] = useState<Project[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
@@ -163,6 +165,13 @@ export default function ProyectosPage() {
   }, [editingProject, selectedProject, showError]);
 
   const handleDeleteProject = useCallback(async (id: string) => {
+    const ok = await confirm({
+      title: "Eliminar proyecto",
+      message: "¿Seguro que querés eliminar este proyecto? Se borrarán también sus carpetas, links y cuentas. Esta acción no se puede deshacer.",
+      variant: "danger",
+    });
+    if (!ok) return;
+
     setProjects((prev) => prev.filter((p) => p.id !== id));
 
     const supabase = createClient();
@@ -180,7 +189,7 @@ export default function ProyectosPage() {
         .order("created_at", { ascending: false });
       if (data) setProjects((data as DbProject[]).map(dbToProject));
     }
-  }, [showError]);
+  }, [showError, confirm]);
 
   const handleViewProject = (id: string) => {
     const project = projects.find((p) => p.id === id);

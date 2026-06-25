@@ -5,6 +5,7 @@ import TimerInput from "./components/TimerInput";
 import LogList from "./components/LogList";
 import PageHeader from "./components/PageHeader";
 import ErrorBanner from "./components/ErrorBanner";
+import { useConfirm } from "./components/ConfirmDialog";
 import type { TimeLog, DbLog } from "./types";
 import { dbToTimeLog, timeLogToDb } from "./types";
 import { createClient } from "@/lib/supabase/client";
@@ -63,6 +64,7 @@ async function fetchLogsPage(before: string | null): Promise<LogsPage> {
 }
 
 export default function Home() {
+  const confirm = useConfirm();
   const [allLogs, setAllLogs] = useState<TimeLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -134,6 +136,13 @@ export default function Home() {
   }, [showError]);
 
   const handleDeleteLog = useCallback(async (id: string) => {
+    const ok = await confirm({
+      title: "Eliminar registro",
+      message: "¿Seguro que querés eliminar este registro de tiempo? Esta acción no se puede deshacer.",
+      variant: "danger",
+    });
+    if (!ok) return;
+
     setAllLogs((prev) => prev.filter((log) => log.id !== id));
 
     const supabase = createClient();
@@ -147,7 +156,7 @@ export default function Home() {
       showError("No se pudo eliminar el registro.");
       await refetchLoaded();
     }
-  }, [refetchLoaded, showError]);
+  }, [refetchLoaded, showError, confirm]);
 
   const handleUpdateLog = useCallback(async (updatedLog: TimeLog) => {
     setAllLogs((prev) =>

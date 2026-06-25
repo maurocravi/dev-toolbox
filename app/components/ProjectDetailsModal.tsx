@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Project, ProjectLink, ProjectAccount, ProjectFolder, generateUUID } from "../types";
 import LinksAccountsManager from "./LinksAccountsManager";
 import FolderDetailsModal from "./FolderDetailsModal";
+import { useConfirm } from "./ConfirmDialog";
 
 interface ProjectDetailsModalProps {
   project: Project;
@@ -30,6 +31,7 @@ export default function ProjectDetailsModal({
   onClose,
   onUpdate,
 }: ProjectDetailsModalProps) {
+  const confirm = useConfirm();
   const [links, setLinks] = useState<ProjectLink[]>(project.links);
   const [accounts, setAccounts] = useState<ProjectAccount[]>(project.accounts);
   const [folders, setFolders] = useState<ProjectFolder[]>(project.folders);
@@ -114,7 +116,14 @@ export default function ProjectDetailsModal({
     setFolderError(null);
   };
 
-  const handleDeleteFolder = (id: string) => {
+  const handleDeleteFolder = async (id: string) => {
+    const folder = folders.find((f) => f.id === id);
+    const ok = await confirm({
+      title: "Eliminar carpeta",
+      message: `¿Seguro que querés eliminar la carpeta${folder ? ` "${folder.name}"` : ""}? Se borrarán los links y cuentas que contiene. Esta acción no se puede deshacer.`,
+      variant: "danger",
+    });
+    if (!ok) return;
     persist(links, accounts, folders.filter((f) => f.id !== id));
   };
 
