@@ -2,6 +2,10 @@
 
 import { useState } from "react";
 import type { TimeLog } from "../types";
+import { useTimer } from "./TimerContext";
+import ProjectPicker, { ProjectChip } from "./ProjectPicker";
+import { useProjectOptions } from "@/lib/projectOptions";
+import { findProjectIdByTaskName } from "@/lib/jiraPrefix";
 import {
   formatDuration,
   formatDurationEditable,
@@ -38,15 +42,19 @@ export default function LogList({
   const [editTaskName, setEditTaskName] = useState("");
   const [editDuration, setEditDuration] = useState("");
   const [editDate, setEditDate] = useState("");
+  const [editProjectId, setEditProjectId] = useState<string | null>(null);
+  const { projects } = useProjectOptions();
   const [savingId, setSavingId] = useState<string | null>(null);
   const [togglingJiraId, setTogglingJiraId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const { resume, isRunning: timerRunning, taskName: runningTaskName, saving: timerSaving } = useTimer();
 
   const startEditing = (log: TimeLog) => {
     setEditingId(log.id);
     setEditTaskName(log.taskName);
     setEditDuration(formatDurationEditable(log.duration));
     setEditDate(toDateInputValue(log.startTime));
+    setEditProjectId(log.projectId);
   };
 
   const cancelEditing = () => {
@@ -78,6 +86,7 @@ export default function LogList({
       startTime: newStartTime,
       endTime: newEndTime,
       duration: newDuration,
+      projectId: editProjectId,
     };
 
     await onUpdateLog(updatedLog);
@@ -171,7 +180,7 @@ export default function LogList({
                       key={log.id}
                       className={`flex items-center justify-between gap-4 px-4 py-3.5 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl transition-all duration-150 animate-[slideIn_0.3s_ease_forwards] ${
                         isEditing
-                          ? "!border-[var(--accent)] bg-[#16161e] shadow-[0_0_0_3px_rgba(99,102,241,0.08)] relative"
+                          ? "!border-[var(--accent)] bg-[#16161e] shadow-[0_0_0_3px_rgba(99,102,241,0.08)] relative z-20"
                           : "hover:border-[#2a2a32] hover:bg-[#181820]"
                       }`}
                       style={{ animationDelay: `${index * 50}ms`, opacity: isEditing ? 1 : undefined }}
@@ -192,7 +201,14 @@ export default function LogList({
                               <input
                                 type="text"
                                 value={editTaskName}
-                                onChange={(e) => setEditTaskName(e.target.value)}
+                                onChange={(e) => {
+                                  setEditTaskName(e.target.value);
+                                  // Si el registro no tiene proyecto, sugerirlo por el prefijo
+                                  if (editProjectId === null) {
+                                    const detected = findProjectIdByTaskName(e.target.value, projects);
+                                    if (detected) setEditProjectId(detected);
+                                  }
+                                }}
                                 className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] rounded-lg px-2 py-1.5 text-[0.8125rem] text-[var(--foreground)] outline-none transition-[border-color,box-shadow] duration-150 font-[inherit] placeholder:text-zinc-600 focus:border-[var(--accent)] focus:shadow-[0_0_0_2px_rgba(99,102,241,0.1)]"
                                 placeholder="Nombre de tarea"
                                 autoFocus
@@ -201,7 +217,8 @@ export default function LogList({
                                   if (e.key === "Escape") cancelEditing();
                                 }}
                               />
-                              <div className="flex items-center gap-2">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <ProjectPicker size="sm" value={editProjectId} onChange={setEditProjectId} />
                                 <input
                                   type="date"
                                   value={editDate}
@@ -222,9 +239,11 @@ export default function LogList({
                               <p className="text-sm font-medium text-neutral-200 truncate">
                                 {log.taskName}
                               </p>
-                              <p className="text-xs text-neutral-500 mt-0.5">
-                                {formatTimeOfDay(log.startTime)} →{" "}
-                                {formatTimeOfDay(log.endTime)}
+                              <p className="flex items-center gap-2 min-w-0 text-xs text-neutral-500 mt-0.5">
+                                <ProjectChip projectId={log.projectId} className="flex-shrink min-w-0" />
+                                <span className="whitespace-nowrap">
+                                  {formatTimeOfDay(log.startTime)} → {formatTimeOfDay(log.endTime)}
+                                </span>
                               </p>
                             </>
                           )}
@@ -274,6 +293,36 @@ export default function LogList({
                               <span className="font-mono text-[0.8125rem] font-semibold text-[var(--foreground)] bg-[var(--input-bg)] px-2.5 py-1 rounded-lg whitespace-nowrap">
                                 {formatDuration(log.duration)}
                               </span>
+                              {(() => {
+                                const isCurrent = timerRunning && runningTaskName.trim() === log.taskName.trim();
+                                return (
+                                  <button
+                                    onClick={() => resume(log.taskName, log.projectId)}
+                                    className={`flex items-center justify-center w-7 h-7 rounded-lg bg-transparent border-none cursor-pointer transition-all duration-150 flex-shrink-0 disabled:cursor-not-allowed ${
+                                      isCurrent
+                                        ? "text-emerald-400 disabled:opacity-100"
+                                        : "text-zinc-500 hover:bg-[rgba(16,185,129,0.12)] hover:text-emerald-400 disabled:opacity-40"
+                                    }`}
+                                    aria-label={isCurrent ? `${log.taskName} en curso` : `Retomar tarea ${log.taskName}`}
+                                    disabled={isCurrent || timerSaving || savingId !== null || togglingJiraId !== null}
+                                    title={
+                                      isCurrent
+                                        ? "En curso"
+                                        : timerRunning
+                                          ? "Retomar (guarda la tarea en curso y arranca esta)"
+                                          : "Retomar esta tarea"
+                                    }
+                                  >
+                                    {isCurrent ? (
+                                      <span className="w-1.5 h-1.5 rounded-full bg-[var(--success)] animate-[pulse_2s_ease-in-out_infinite]" />
+                                    ) : (
+                                      <svg width="12" height="12" viewBox="0 0 18 18" fill="none">
+                                        <path d="M5 3.5L14.5 9L5 14.5V3.5Z" fill="currentColor" />
+                                      </svg>
+                                    )}
+                                  </button>
+                                );
+                              })()}
                               <button
                                 onClick={() => startEditing(log)}
                                 className="flex items-center justify-center w-7 h-7 rounded-lg bg-transparent border-none cursor-pointer transition-all duration-150 flex-shrink-0 text-zinc-500 hover:bg-[rgba(99,102,241,0.1)] hover:text-[var(--accent-hover)] disabled:opacity-40 disabled:cursor-not-allowed"

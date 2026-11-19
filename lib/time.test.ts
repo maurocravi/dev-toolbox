@@ -10,6 +10,14 @@ import {
   getTotalDuration,
   toDateInputValue,
   combineDateWithTime,
+  startOfWeek,
+  getWeekDayTotals,
+  getWeekDayIndex,
+  formatDurationShort,
+  isForgottenTimer,
+  toDateTimeLocalValue,
+  validateTrimEnd,
+  FORGOTTEN_TIMER_SECS,
 } from "./time";
 
 // Los scripts de test corren con TZ=America/Argentina/Buenos_Aires (UTC-3)
@@ -25,6 +33,7 @@ function makeLog(startTime: string, overrides: Partial<TimeLog> = {}): TimeLog {
     endTime: startTime,
     duration: 60,
     isLoggedJira: false,
+    projectId: null,
     ...overrides,
   };
 }
@@ -192,5 +201,128 @@ describe("combineDateWithTime", () => {
 
   it("devuelve null si la fecha está vacía", () => {
     expect(combineDateWithTime("", new Date().toISOString())).toBeNull();
+  });
+});
+
+describe("startOfWeek", () => {
+  it("devuelve el lunes 00:00 local para un día de semana", () => {
+    // miércoles 18/11/2026 15:00
+    const monday = startOfWeek(new Date(2026, 10, 18, 15, 0));
+    expect(monday.getFullYear()).toBe(2026);
+    expect(monday.getMonth()).toBe(10);
+    expect(monday.getDate()).toBe(16);
+    expect(monday.getHours()).toBe(0);
+    expect(monday.getMinutes()).toBe(0);
+  });
+
+  it("trata el domingo como el último día de la semana", () => {
+    // domingo 22/11/2026 → lunes 16/11
+    expect(startOfWeek(new Date(2026, 10, 22, 23, 59)).getDate()).toBe(16);
+  });
+
+  it("el lunes devuelve el mismo día", () => {
+    expect(startOfWeek(new Date(2026, 10, 16, 0, 0)).getDate()).toBe(16);
+  });
+
+  it("cruza el cambio de mes", () => {
+    // jueves 3/12/2026 → lunes 30/11/2026
+    const monday = startOfWeek(new Date(2026, 11, 3, 10, 0));
+    expect(monday.getMonth()).toBe(10);
+    expect(monday.getDate()).toBe(30);
+  });
+});
+
+describe("getWeekDayTotals", () => {
+  const now = new Date(2026, 10, 18, 12, 0); // miércoles
+
+  it("suma por día de lunes a domingo", () => {
+    const logs = [
+      makeLog(new Date(2026, 10, 16, 9, 0).toISOString(), { duration: 100 }), // lunes
+      makeLog(new Date(2026, 10, 16, 14, 0).toISOString(), { duration: 50 }), // lunes
+      makeLog(new Date(2026, 10, 18, 10, 0).toISOString(), { duration: 30 }), // miércoles
+    ];
+    expect(getWeekDayTotals(logs, now)).toEqual([150, 0, 30, 0, 0, 0, 0]);
+  });
+
+  it("ignora logs de la semana anterior y de la siguiente", () => {
+    const logs = [
+      makeLog(new Date(2026, 10, 15, 23, 59).toISOString(), { duration: 100 }), // domingo anterior
+      makeLog(new Date(2026, 10, 23, 0, 0).toISOString(), { duration: 100 }), // lunes siguiente
+    ];
+    expect(getWeekDayTotals(logs, now)).toEqual([0, 0, 0, 0, 0, 0, 0]);
+  });
+
+  it("usa el día local, no UTC", () => {
+    // domingo 22/11 22:30 en Buenos Aires = lunes 23/11 01:30 UTC
+    const logs = [makeLog("2026-11-23T01:30:00.000Z", { duration: 60 })];
+    expect(getWeekDayTotals(logs, now)).toEqual([0, 0, 0, 0, 0, 0, 60]);
+  });
+});
+
+describe("getWeekDayIndex", () => {
+  it("lunes es 0 y domingo es 6", () => {
+    expect(getWeekDayIndex(new Date(2026, 10, 16))).toBe(0);
+    expect(getWeekDayIndex(new Date(2026, 10, 22))).toBe(6);
+  });
+});
+
+describe("formatDurationShort", () => {
+  it("formatea horas con minutos en dos dígitos", () => {
+    expect(formatDurationShort(3 * 3600 + 5 * 60 + 40)).toBe("3h 05m");
+  });
+
+  it("muestra solo minutos o segundos cuando corresponde", () => {
+    expect(formatDurationShort(45 * 60 + 10)).toBe("45m");
+    expect(formatDurationShort(30)).toBe("30s");
+    expect(formatDurationShort(0)).toBe("0s");
+  });
+});
+
+describe("isForgottenTimer", () => {
+  const start = new Date(2026, 10, 18, 8, 0);
+  const at = (h: number, m = 0) => new Date(2026, 10, 18, h, m).getTime();
+
+  it("no avisa sin timer o antes del umbral", () => {
+    expect(isForgottenTimer(null, at(20), null)).toBe(false);
+    expect(isForgottenTimer(start.toISOString(), at(11, 59), null)).toBe(false);
+  });
+
+  it("avisa al llegar al umbral de 4 horas", () => {
+    expect(FORGOTTEN_TIMER_SECS).toBe(4 * 3600);
+    expect(isForgottenTimer(start.toISOString(), at(12), null)).toBe(true);
+  });
+
+  it("respeta el aviso pospuesto hasta que vence", () => {
+    const snoozedUntil = new Date(at(14)).toISOString();
+    expect(isForgottenTimer(start.toISOString(), at(13), snoozedUntil)).toBe(false);
+    expect(isForgottenTimer(start.toISOString(), at(14), snoozedUntil)).toBe(true);
+  });
+});
+
+describe("toDateTimeLocalValue", () => {
+  it("formatea en hora local para datetime-local", () => {
+    expect(toDateTimeLocalValue(new Date(2026, 0, 5, 9, 7, 30))).toBe("2026-01-05T09:07");
+  });
+
+  it("es parseable de vuelta como hora local", () => {
+    const d = new Date(2026, 10, 18, 23, 45);
+    expect(new Date(toDateTimeLocalValue(d)).getTime()).toBe(d.getTime());
+  });
+});
+
+describe("validateTrimEnd", () => {
+  const start = new Date(2026, 10, 18, 8, 0).toISOString();
+  const now = new Date(2026, 10, 18, 20, 0);
+
+  it("acepta una hora entre el inicio y ahora", () => {
+    expect(validateTrimEnd(start, new Date(2026, 10, 18, 12, 30), now)).toBeNull();
+    expect(validateTrimEnd(start, now, now)).toBeNull();
+  });
+
+  it("rechaza fechas inválidas, anteriores al inicio o futuras", () => {
+    expect(validateTrimEnd(start, null, now)).not.toBeNull();
+    expect(validateTrimEnd(start, new Date("invalid"), now)).not.toBeNull();
+    expect(validateTrimEnd(start, new Date(2026, 10, 18, 8, 0), now)).not.toBeNull();
+    expect(validateTrimEnd(start, new Date(2026, 10, 18, 20, 1), now)).not.toBeNull();
   });
 });

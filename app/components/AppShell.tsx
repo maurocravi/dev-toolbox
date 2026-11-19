@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import Sidebar from "./Sidebar";
 import { ConfirmProvider } from "./ConfirmDialog";
+import { TimerProvider } from "./TimerContext";
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -10,10 +11,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <ConfirmProvider>
-      <div className={hideSidebar ? "" : "app-layout"}>
-        {!hideSidebar && <Sidebar />}
-        <main className={hideSidebar ? "w-full" : "app-main ml-60"}>{children}</main>
-      </div>
+      <TimerProvider>
+        <div className={hideSidebar ? "" : "app-layout"}>
+          {!hideSidebar && <Sidebar />}
+          <main className={hideSidebar ? "w-full" : "app-main ml-60"}>{children}</main>
+        </div>
+      </TimerProvider>
     </ConfirmProvider>
   );
 }

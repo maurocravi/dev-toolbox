@@ -9,6 +9,7 @@ import ErrorBanner from "../components/ErrorBanner";
 import { useConfirm } from "../components/ConfirmDialog";
 import { dbToProject, projectToDb, type DbProject, type Project } from "../types";
 import { createClient } from "@/lib/supabase/client";
+import { invalidateProjectOptions } from "@/lib/projectOptions";
 
 function generateId(): string {
   return `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
@@ -35,6 +36,8 @@ export default function ProyectosPage() {
   useEffect(() => {
     return () => {
       if (errorTimeoutRef.current) clearTimeout(errorTimeoutRef.current);
+      // Al salir, que el selector de proyectos del Time Tracker refleje los cambios hechos acá
+      invalidateProjectOptions();
     };
   }, []);
 
@@ -91,6 +94,7 @@ export default function ProyectosPage() {
         name: data.name,
         color: data.color,
         description: data.description,
+        jiraPrefixes: data.jiraPrefixes,
       };
 
       setProjects((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
@@ -105,6 +109,7 @@ export default function ProyectosPage() {
           name: updated.name,
           color: updated.color,
           description: updated.description,
+          jira_prefixes: updated.jiraPrefixes,
         })
         .eq("id", updated.id);
 
@@ -136,6 +141,7 @@ export default function ProyectosPage() {
       links: [],
       accounts: [],
       folders: [],
+      jiraPrefixes: data.jiraPrefixes,
     };
 
     setProjects((prev) => [tempProject, ...prev]);

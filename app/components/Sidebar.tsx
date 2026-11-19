@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import SidebarTimer from "./SidebarTimer";
 
 const navItems = [
   {
@@ -90,6 +91,8 @@ export default function Sidebar() {
           })}
         </ul>
       </nav>
+
+      <SidebarTimer />
 
       <div className="px-4 py-5 border-t border-[var(--card-border)]">
         <button

@@ -2,11 +2,13 @@
 
 import { useState, useEffect, useCallback } from "react";
 import type { Project } from "../types";
+import { parsePrefixList, invalidPrefixes, formatPrefixList } from "@/lib/jiraPrefix";
 
 export interface ProjectFormData {
   name: string;
   color: string;
   description: string;
+  jiraPrefixes: string[];
 }
 
 interface ProjectModalProps {
@@ -34,19 +36,25 @@ export default function ProjectModal({ isOpen, onClose, onSave, project }: Proje
   const [name, setName] = useState("");
   const [color, setColor] = useState(DEFAULT_COLOR);
   const [description, setDescription] = useState("");
+  const [prefixes, setPrefixes] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [prefixError, setPrefixError] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen && project) {
       setName(project.name);
       setColor(project.color);
       setDescription(project.description);
+      setPrefixes(formatPrefixList(project.jiraPrefixes));
       setError(null);
+      setPrefixError(null);
     } else if (isOpen) {
       setName("");
       setColor(DEFAULT_COLOR);
       setDescription("");
+      setPrefixes("");
       setError(null);
+      setPrefixError(null);
     }
   }, [isOpen, project]);
 
@@ -54,7 +62,9 @@ export default function ProjectModal({ isOpen, onClose, onSave, project }: Proje
     setName("");
     setColor(DEFAULT_COLOR);
     setDescription("");
+    setPrefixes("");
     setError(null);
+    setPrefixError(null);
     onClose();
   }, [onClose]);
 
@@ -65,7 +75,13 @@ export default function ProjectModal({ isOpen, onClose, onSave, project }: Proje
       setError("El nombre es obligatorio.");
       return;
     }
-    onSave({ name: trimmedName, color, description: description.trim() });
+    const prefixList = parsePrefixList(prefixes);
+    const invalid = invalidPrefixes(prefixList);
+    if (invalid.length > 0) {
+      setPrefixError(`Prefijo inválido: ${invalid.join(", ")}. Usá solo letras y números, empezando con letra.`);
+      return;
+    }
+    onSave({ name: trimmedName, color, description: description.trim(), jiraPrefixes: prefixList });
     handleClose();
   };
 
@@ -122,6 +138,31 @@ export default function ProjectModal({ isOpen, onClose, onSave, project }: Proje
               autoFocus
             />
             {error && <p className="text-xs text-[var(--danger)] mt-1.5">{error}</p>}
+          </div>
+
+          {/* Jira prefixes */}
+          <div className="mb-5">
+            <label className="block text-[0.8125rem] font-medium text-[var(--foreground)] mb-2" htmlFor="project-prefixes">
+              Prefijos Jira
+            </label>
+            <input
+              id="project-prefixes"
+              className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl px-4 py-3 text-[0.875rem] font-mono uppercase text-[var(--foreground)] outline-none transition-all duration-200 placeholder:normal-case placeholder:font-sans placeholder:text-zinc-600 focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_rgba(99,102,241,0.1)]"
+              type="text"
+              placeholder="Ej: SK o SOD, SODA"
+              value={prefixes}
+              onChange={(e) => {
+                setPrefixes(e.target.value);
+                if (prefixError) setPrefixError(null);
+              }}
+            />
+            {prefixError ? (
+              <p className="text-xs text-[var(--danger)] mt-1.5">{prefixError}</p>
+            ) : (
+              <p className="text-xs text-neutral-500 mt-1.5">
+                Al escribir una tarea como &quot;SK-123 …&quot; en el Time Tracker, se elige este proyecto automáticamente.
+              </p>
+            )}
           </div>
 
           {/* Color */}

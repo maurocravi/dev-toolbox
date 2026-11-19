@@ -1,87 +1,54 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
-import type { TimeLog } from "../types";
-import { generateUUID } from "../types";
+import { useRef, useSyncExternalStore } from "react";
+import { useProjectOptions } from "@/lib/projectOptions";
+import { findProjectIdByTaskName } from "@/lib/jiraPrefix";
+import { useTimer, useElapsed, formatTime } from "./TimerContext";
+import ErrorBanner from "./ErrorBanner";
+import ForgottenTimerNotice from "./ForgottenTimerNotice";
+import ProjectPicker, { ProjectChip } from "./ProjectPicker";
 
-interface TimerInputProps {
-  onLogCreated: (log: TimeLog) => Promise<void>;
+const noopSubscribe = () => () => {};
+/** "⌘" en Mac, "Ctrl" en el resto (en el server se asume "Ctrl" y se corrige al hidratar). */
+function useModKeyLabel(): string {
+  return useSyncExternalStore(
+    noopSubscribe,
+    () => (/Mac|iPhone|iPad/.test(navigator.platform) ? "⌘" : "Ctrl"),
+    () => "Ctrl"
+  );
 }
 
-function formatTime(totalSeconds: number): string {
-  const h = Math.floor(totalSeconds / 3600);
-  const m = Math.floor((totalSeconds % 3600) / 60);
-  const s = totalSeconds % 60;
-  return [h, m, s].map((v) => String(v).padStart(2, "0")).join(":");
-}
+export default function TimerInput() {
+  const { taskName, setTaskName, projectId, setProjectId, startTime, isRunning, saving, error, clearError, start, stop } =
+    useTimer();
+  const elapsed = useElapsed(startTime);
+  const modKey = useModKeyLabel();
+  const { projects } = useProjectOptions();
+  // Proyecto que se eligió solo por el prefijo; si el usuario elige uno a mano, no se pisa
+  const autoProjectRef = useRef<string | null>(null);
 
-export default function TimerInput({ onLogCreated }: TimerInputProps) {
-  const [taskName, setTaskName] = useState("");
-  const [isRunning, setIsRunning] = useState(false);
-  const [elapsed, setElapsed] = useState(0);
-  const [startTime, setStartTime] = useState<Date | null>(null);
-  const [saving, setSaving] = useState(false);
-
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const startTimeRef = useRef<Date | null>(null);
-
-  const stopTimer = useCallback(async () => {
-    if (!startTimeRef.current) return;
-
-    const endTime = new Date();
-    const duration = Math.floor(
-      (endTime.getTime() - startTimeRef.current.getTime()) / 1000
-    );
-
-    const log: TimeLog = {
-      id: generateUUID(),
-      taskName: taskName.trim() || "Tarea sin nombre",
-      startTime: startTimeRef.current.toISOString(),
-      endTime: endTime.toISOString(),
-      duration,
-      isLoggedJira: false,
-    };
-
-    if (intervalRef.current) clearInterval(intervalRef.current);
-    intervalRef.current = null;
-    startTimeRef.current = null;
-
-    setIsRunning(false);
-    setElapsed(0);
-    setStartTime(null);
-    setSaving(true);
-
-    await onLogCreated(log);
-
-    setSaving(false);
-    setTaskName("");
-  }, [taskName, onLogCreated]);
-
-  const startTimer = useCallback(() => {
-    const now = new Date();
-    setStartTime(now);
-    startTimeRef.current = now;
-    setIsRunning(true);
-    setElapsed(0);
-  }, []);
-
-  useEffect(() => {
-    if (isRunning && startTime) {
-      intervalRef.current = setInterval(() => {
-        const now = new Date();
-        setElapsed(Math.floor((now.getTime() - startTime.getTime()) / 1000));
-      }, 1000);
+  const handleTaskNameChange = (name: string) => {
+    setTaskName(name);
+    const detected = findProjectIdByTaskName(name, projects);
+    const isAutoOrEmpty = projectId === null || projectId === autoProjectRef.current;
+    if (!isAutoOrEmpty) return;
+    if (detected !== projectId) {
+      setProjectId(detected);
     }
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, [isRunning, startTime]);
+    autoProjectRef.current = detected;
+  };
+
+  const handleProjectChange = (id: string | null) => {
+    autoProjectRef.current = null;
+    setProjectId(id);
+  };
 
   const handleToggle = () => {
+    if (saving) return;
     if (isRunning) {
-      stopTimer();
+      stop();
     } else {
-      startTimer();
+      start();
     }
   };
 
@@ -95,21 +62,27 @@ export default function TimerInput({ onLogCreated }: TimerInputProps) {
         </span>
       </div>
 
-      {/* Task Name Input */}
+      {/* Proyecto + nombre de la tarea */}
+      <div className="flex flex-wrap sm:flex-nowrap items-stretch gap-2">
+        <div className="flex-shrink-0 max-w-full sm:max-w-[40%] [&>div>button]:h-full [&>div]:h-full">
+          <ProjectPicker id="timer-project-picker" value={projectId} onChange={handleProjectChange} />
+        </div>
       <input
         id="task-name-input"
         type="text"
         placeholder="¿En qué estás trabajando?"
         value={taskName}
-        onChange={(e) => setTaskName(e.target.value)}
+        onChange={(e) => handleTaskNameChange(e.target.value)}
         disabled={isRunning}
         onKeyDown={(e) => {
-          if (e.key === "Enter" && !isRunning && taskName.trim()) {
-            startTimer();
+          // Cmd/Ctrl+Enter lo maneja el atajo global (inicia aunque no haya nombre)
+          if (e.key === "Enter" && !e.metaKey && !e.ctrlKey && !isRunning && taskName.trim()) {
+            start();
           }
         }}
-        className="w-full bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl px-4 py-3 text-[0.875rem] text-[var(--foreground)] outline-none transition-all duration-200 font-[inherit] placeholder:text-zinc-600 disabled:opacity-50 disabled:cursor-not-allowed focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_rgba(99,102,241,0.1)]"
+        className="flex-1 min-w-[12rem] bg-[var(--input-bg)] border border-[var(--input-border)] rounded-xl px-4 py-3 text-[0.875rem] text-[var(--foreground)] outline-none transition-all duration-200 font-[inherit] placeholder:text-zinc-600 disabled:opacity-50 disabled:cursor-not-allowed focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_rgba(99,102,241,0.1)]"
       />
+      </div>
 
       {/* Timer Display + Button */}
       <div className="flex items-center justify-between mt-5">
@@ -122,12 +95,15 @@ export default function TimerInput({ onLogCreated }: TimerInputProps) {
         <button
           id="timer-toggle-btn"
           onClick={handleToggle}
+          disabled={saving}
           className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-[0.8125rem] font-semibold border-none cursor-pointer transition-all duration-200 font-[inherit] ${
             isRunning
               ? "bg-[rgba(239,68,68,0.15)] text-[var(--danger)] border border-[rgba(239,68,68,0.2)] hover:bg-[rgba(239,68,68,0.25)] hover:text-[var(--danger-hover)]"
               : "bg-[var(--accent)] text-white shadow-[0_2px_12px_rgba(99,102,241,0.3)] hover:bg-[var(--accent-hover)] hover:shadow-[0_4px_20px_rgba(99,102,241,0.4)] hover:-translate-y-px"
           }`}
           aria-label={isRunning ? "Detener timer" : "Iniciar timer"}
+          aria-keyshortcuts="Meta+Enter Control+Enter"
+          title={`${isRunning ? "Detener" : "Iniciar"} (${modKey} + Enter)`}
         >
           {isRunning ? (
             <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -139,6 +115,13 @@ export default function TimerInput({ onLogCreated }: TimerInputProps) {
             </svg>
           )}
           <span>{isRunning ? "Detener" : "Iniciar"}</span>
+          <kbd
+            className={`hidden sm:inline-flex items-center rounded-md px-1.5 py-0.5 font-sans text-[0.625rem] font-semibold leading-none ${
+              isRunning ? "bg-[rgba(239,68,68,0.15)] text-[var(--danger)]/80" : "bg-white/15 text-white/80"
+            }`}
+          >
+            {modKey} ↵
+          </kbd>
         </button>
       </div>
 
@@ -147,9 +130,18 @@ export default function TimerInput({ onLogCreated }: TimerInputProps) {
         <div className="mt-4 flex items-center gap-2 text-xs text-emerald-400">
           <span className="w-1.5 h-1.5 rounded-full bg-[var(--success)] animate-[pulse_2s_ease-in-out_infinite] flex-shrink-0" />
           Registrando tiempo para{" "}
-          <span className="font-semibold text-emerald-300">
+          <span className="font-semibold text-emerald-300 truncate">
             {taskName.trim() || "Tarea sin nombre"}
           </span>
+          <ProjectChip projectId={projectId} className="flex-shrink-0" />
+        </div>
+      )}
+
+      <ForgottenTimerNotice />
+
+      {error && (
+        <div className="mt-4 [&>div]:mb-0">
+          <ErrorBanner message={error} onDismiss={clearError} />
         </div>
       )}
 

@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import TimerInput from "./components/TimerInput";
+import TimeSummary from "./components/TimeSummary";
+import { useTimer } from "./components/TimerContext";
 import LogList from "./components/LogList";
 import PageHeader from "./components/PageHeader";
 import ErrorBanner from "./components/ErrorBanner";
@@ -120,20 +122,13 @@ export default function Home() {
     if (data) setAllLogs((data as DbLog[]).map(dbToTimeLog));
   }, []);
 
-  const handleLogCreated = useCallback(async (log: TimeLog) => {
-    setAllLogs((prev) => [log, ...prev]);
-
-    const supabase = createClient();
-    const { error: insertError } = await supabase
-      .from("logs")
-      .insert(timeLogToDb(log));
-
-    if (insertError) {
-      console.error("Error inserting log:", insertError);
-      setAllLogs((prev) => prev.filter((l) => l.id !== log.id));
-      showError("No se pudo guardar el registro. Probá de nuevo.");
-    }
-  }, [showError]);
+  // El timer global guarda el log en Supabase; acá solo lo sumamos a la lista
+  const { subscribeLogCreated } = useTimer();
+  useEffect(() => {
+    return subscribeLogCreated((log) => {
+      setAllLogs((prev) => (prev.some((l) => l.id === log.id) ? prev : [log, ...prev]));
+    });
+  }, [subscribeLogCreated]);
 
   const handleDeleteLog = useCallback(async (id: string) => {
     const ok = await confirm({
@@ -256,7 +251,10 @@ export default function Home() {
         ) : (
           <>
             {/* Timer */}
-            <TimerInput onLogCreated={handleLogCreated} />
+            <TimerInput />
+
+            {/* Totales */}
+            <TimeSummary logs={allLogs} />
 
             {/* Logs */}
             <LogList

@@ -5,6 +5,7 @@ export interface TimeLog {
   endTime: string;   // ISO string
   duration: number;  // in seconds
   isLoggedJira: boolean;
+  projectId: string | null;
 }
 
 // UUID v4 generator that works in all browser contexts (no crypto.randomUUID dependency)
@@ -28,6 +29,7 @@ export interface DbLog {
   end_time: string;
   duration: number;
   is_logged_jira: boolean;
+  project_id: string | null;
 }
 
 export function dbToTimeLog(row: DbLog): TimeLog {
@@ -38,6 +40,7 @@ export function dbToTimeLog(row: DbLog): TimeLog {
     endTime: row.end_time,
     duration: row.duration,
     isLoggedJira: row.is_logged_jira ?? false,
+    projectId: row.project_id ?? null,
   };
 }
 
@@ -49,6 +52,7 @@ export function timeLogToDb(log: TimeLog): DbLog {
     end_time: log.endTime,
     duration: log.duration,
     is_logged_jira: log.isLoggedJira,
+    project_id: log.projectId,
   };
 }
 
@@ -87,6 +91,7 @@ export interface DbProject {
   links: ProjectLink[];
   accounts: unknown[];
   folders: unknown[];
+  jira_prefixes: string[] | null;
   user_id: string | null;
 }
 
@@ -99,6 +104,8 @@ export interface Project {
   links: ProjectLink[];
   accounts: ProjectAccount[];
   folders: ProjectFolder[];
+  /** Prefijos de claves Jira (ej. ["SK"]) para asociar tareas al proyecto automáticamente. */
+  jiraPrefixes: string[];
 }
 
 function normalizeFolder(raw: unknown): ProjectFolder {
@@ -122,6 +129,7 @@ export function dbToProject(row: DbProject): Project {
     links: Array.isArray(row.links) ? row.links : [],
     accounts: Array.isArray(row.accounts) ? (row.accounts as ProjectAccount[]) : [],
     folders: Array.isArray(row.folders) ? row.folders.map(normalizeFolder) : [],
+    jiraPrefixes: Array.isArray(row.jira_prefixes) ? row.jira_prefixes : [],
   };
 }
 
@@ -132,6 +140,7 @@ export function projectToDb(project: Project): {
   links: ProjectLink[];
   accounts: ProjectAccount[];
   folders: ProjectFolder[];
+  jira_prefixes: string[];
   user_id: string | null;
 } {
   return {
@@ -141,6 +150,7 @@ export function projectToDb(project: Project): {
     links: project.links,
     accounts: project.accounts,
     folders: project.folders,
+    jira_prefixes: project.jiraPrefixes,
     user_id: null,
   };
 }
